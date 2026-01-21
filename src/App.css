@@ -181,3 +181,20 @@ input[type="checkbox"]:checked {
 .pulse-bar {
   animation: pulseGlow 1.5s infinite ease-in-out;
 }
+/* Prevent mobile browsers from auto “text resizing” */
+html { -webkit-text-size-adjust: 100%; }
+
+/* Phone acts like a window looking at a desktop canvas */
+.desktop-viewport{
+  width: 100vw;
+  height: 100vh;
+  overflow: auto;                 /* ✅ pan/scroll the desktop UI */
+  -webkit-overflow-scrolling: touch;
+  background: #00093eff;
+}
+
+/* The locked “laptop” area */
+.desktop-canvas{
+  position: relative;
+  margin: 0 auto;                 /* center when screen is larger */
+}

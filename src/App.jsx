@@ -8,8 +8,8 @@ import "./App.css";
 /**
  * ✅ SYNC SETTINGS
  * Put these in your frontend .env:
- * VITE_API_BASE="http://localhost:8080"  (or your Render URL)
- * VITE_USER_ID="demo"                   (any string; later replace with login user id)
+ * VITE_API_BASE="http://localhost:8080"  (or your deployed backend URL)
+ * VITE_USER_ID="demo"
  */
 const API_BASE = import.meta.env.VITE_API_BASE || "";
 const USER_ID = import.meta.env.VITE_USER_ID || "demo";
@@ -231,13 +231,15 @@ function App() {
   const MAX_SESSIONS = 31;
   const MAX_SKIN_SESSIONS = 31;
 
-  const [progress, setProgress] = useState(() => loadJSON("muscleProgress", {
-    biceps: 0,
-    shoulders: 0,
-    triceps: 0,
-    abs: 0,
-    forearms: 0,
-  }));
+  const [progress, setProgress] = useState(() =>
+    loadJSON("muscleProgress", {
+      biceps: 0,
+      shoulders: 0,
+      triceps: 0,
+      abs: 0,
+      forearms: 0,
+    })
+  );
 
   // ---------------------------------
   // SKIN
@@ -348,7 +350,6 @@ function App() {
 
   useEffect(() => {
     const hydrate = async () => {
-      // If backend sync is enabled, use backend as source of truth
       if (SYNC_ENABLED) {
         try {
           const data = await fetchState();
@@ -359,7 +360,6 @@ function App() {
           setSkinSessions(Number(data.skinSessions || 0));
           setMindSubjects(data.mindSubjects || defaultMindSubjects);
 
-          // reminders
           const rs = data.reminderSettings || { enabled: true, skinTime: "21:00", bodyTime: "19:00" };
           setSkinReminderTime(rs.skinTime || "21:00");
           setBodyReminderTime(rs.bodyTime || "19:00");
@@ -368,7 +368,6 @@ function App() {
           setMindReminderEnabled(data.mindReminderEnabled || {});
           setMindLastReminderDay(data.mindLastReminderDay || {});
 
-          // optional synced fields (if you add them to backend)
           if (typeof data.weightInput !== "undefined") {
             setInputValue(String(data.weightInput || ""));
             localStorage.setItem("weightInput", String(data.weightInput || ""));
@@ -378,7 +377,6 @@ function App() {
             saveJSON("muscleProgress", data.muscleProgress || progress);
           }
 
-          // fix linkSubjectId if needed
           const first = (data.mindSubjects || defaultMindSubjects || [])[0];
           setLinkSubjectId(first?.id || "dsa");
 
@@ -386,11 +384,9 @@ function App() {
           return;
         } catch (e) {
           console.error(e);
-          // fallback to local storage data if backend not reachable
         }
       }
 
-      // fallback: mark hydrated using local data
       setIsHydrated(true);
     };
 
@@ -415,8 +411,6 @@ function App() {
       mindReminderTimes,
       mindReminderEnabled,
       mindLastReminderDay,
-
-      // Optional synced fields (add to backend schema if you want them synced)
       weightInput: inputValue,
       muscleProgress: progress,
     };
@@ -443,7 +437,7 @@ function App() {
   ]);
 
   // ---------------------------------
-  // Local persistence (kept for offline + instant UX)
+  // Local persistence (offline + instant UX)
   // ---------------------------------
   useEffect(() => saveJSON("plannerTasks", plannerTasks), [plannerTasks]);
   useEffect(() => saveJSON("bodyTasks", tasks), [tasks]);
@@ -462,14 +456,13 @@ function App() {
   }, [skinReminderTime, bodyReminderTime]);
 
   // ---------------------------------
-  // Monthly reset (optional: keeps your original behavior)
+  // Monthly reset (optional)
   // ---------------------------------
   useEffect(() => {
     const savedMonth = localStorage.getItem("appMonthKey");
     const nowMonth = getMonthKey();
 
     if (savedMonth !== nowMonth) {
-      // reset muscle progress + tasks monthly (your older behavior)
       localStorage.removeItem("muscleProgress");
       localStorage.removeItem("bodyTasks");
 
@@ -478,7 +471,6 @@ function App() {
 
       localStorage.setItem("appMonthKey", nowMonth);
 
-      // apply resets in state too
       setProgress({ biceps: 0, shoulders: 0, triceps: 0, abs: 0, forearms: 0 });
       setTasks(defaultBodyTasks.map((t) => ({ ...t, completed: false })));
       setSkinTasks(defaultSkinTasks.map((t) => ({ ...t, completed: false })));
@@ -602,9 +594,7 @@ function App() {
     }
   }, [inputValue]);
 
-  const handleChange = (e) => {
-    setInputValue(e.target.value);
-  };
+  const handleChange = (e) => setInputValue(e.target.value);
 
   // ---------------------------------
   // ✅ DAILY RESET at 00:00 IST (Body + Mind + Skin)
@@ -615,7 +605,6 @@ function App() {
     const resetIfNewISTDay = () => {
       const todayIST = getISTDayKey();
 
-      // SKIN reset
       const savedSkinDay = localStorage.getItem("skinDayKey_IST");
       if (savedSkinDay !== todayIST) {
         setSkinTasks((prev) => prev.map((t) => ({ ...t, completed: false })));
@@ -624,18 +613,14 @@ function App() {
         localStorage.removeItem("skinLastReminderDay");
       }
 
-      // BODY reset (your request: task checkbox reset after 24 hours IST)
       const savedBodyDay = localStorage.getItem("bodyDayKey_IST");
       if (savedBodyDay !== todayIST) {
         setTasks((prev) => prev.map((t) => ({ ...t, completed: false })));
         localStorage.setItem("bodyDayKey_IST", todayIST);
-
-        // allow body reminder again today
         localStorage.removeItem("bodyLastReminderDay");
         setBodyLastReminderDay("");
       }
 
-      // MIND reset (units checkboxes)
       const savedMindDay = localStorage.getItem("mindDayKey_IST");
       if (savedMindDay !== todayIST) {
         setMindSubjects((prev) =>
@@ -645,7 +630,6 @@ function App() {
           }))
         );
         localStorage.setItem("mindDayKey_IST", todayIST);
-        // mind reminders are per-subject; they compare with todayIST anyway
       }
     };
 
@@ -654,10 +638,8 @@ function App() {
     return () => clearInterval(timer);
   }, []);
 
-  // ✅ Skin session increment + completion notification
   useEffect(() => {
     const allCompleted = skinTasks.every((t) => t.completed);
-
     if (allCompleted && !prevAllCompletedRef.current) {
       setSkinSessions((s) => Math.min(s + 1, MAX_SKIN_SESSIONS));
       fireNotify("✅ Skin Session Completed", "Nice! Your skin routine session has been recorded.");
@@ -675,7 +657,6 @@ function App() {
     const tick = () => {
       const now = Date.now();
 
-      // planner reminders
       setPlannerTasks((prev) => {
         let changed = false;
         const next = prev.map((t) => {
@@ -697,10 +678,7 @@ function App() {
       const nowMinutesIST = getISTNowMinutes();
       const todayIST = getISTDayKey();
 
-      // Skin daily reminder
-      const [shh, smm] = String(skinReminderTime || "21:00")
-        .split(":")
-        .map((x) => parseInt(x, 10));
+      const [shh, smm] = String(skinReminderTime || "21:00").split(":").map((x) => parseInt(x, 10));
       if (Number.isFinite(shh) && Number.isFinite(smm)) {
         const target = shh * 60 + smm;
         const lastDay = localStorage.getItem("skinLastReminderDay");
@@ -714,10 +692,7 @@ function App() {
         }
       }
 
-      // Body daily reminder
-      const [bhh, bmm] = String(bodyReminderTime || "19:00")
-        .split(":")
-        .map((x) => parseInt(x, 10));
+      const [bhh, bmm] = String(bodyReminderTime || "19:00").split(":").map((x) => parseInt(x, 10));
       if (Number.isFinite(bhh) && Number.isFinite(bmm)) {
         const target = bhh * 60 + bmm;
         const incomplete = tasks.some((t) => !t.completed);
@@ -730,7 +705,6 @@ function App() {
         }
       }
 
-      // Mind per-subject reminder
       const times = mindReminderTimes || {};
       const enabledMap = mindReminderEnabled || {};
       const lastMap = mindLastReminderDay || {};
@@ -952,7 +926,6 @@ function App() {
     setMindSubjects((prev) => {
       const next = prev.filter((s) => s.id !== subjectId);
 
-      // fix dropdown selection
       if (linkSubjectId === subjectId) {
         setLinkSubjectId(next[0]?.id || "");
       } else if (next.length === 0) {
@@ -1017,11 +990,12 @@ function App() {
   }, [skinTasks]);
 
   // ---------------------------------
-  // Styles
+  // ✅ RESPONSIVE (NO SCALE, NO STACK):
+  // We lock the UI to a desktop canvas and let smaller screens pan/scroll.
   // ---------------------------------
   const containerStyle = {
-    width: "100vw",
-    height: "100vh",
+    width: "1366px", // ✅ locked "laptop canvas"
+    height: "768px", // ✅ locked "laptop canvas"
     margin: 0,
     padding: 0,
     position: "relative",
@@ -1070,170 +1044,702 @@ function App() {
   // Render
   // ---------------------------------
   return (
-    <div style={containerStyle}>
-      {/* --- BUTTONS --- */}
-      <button
-        className="glow-btn"
-        style={{ ...buttonStyle, top: "20%", left: "49.3%" }}
-        onClick={() => setActiveView("Mind")}
-        title="Mind"
-      />
-      <button
-        className="glow-btn"
-        style={{ ...buttonStyle, top: "35%", left: "49.3%" }}
-        onClick={() => setActiveView("Skin")}
-        title="Skin"
-      />
-      <button
-        className="glow-btn"
-        style={{ ...buttonStyle, top: "45%", left: "49.3%" }}
-        onClick={() => setActiveView("Body")}
-        title="Body"
-      />
-      <button
-        className="glow-btn"
-        style={{ ...buttonStyle, bottom: "6%", right: "49.3%" }}
-        onClick={() => setActiveView("Tasks")}
-        title="Tasks"
-      />
+    <div className="desktop-viewport">
+      <div className="desktop-canvas" style={containerStyle}>
+        {/* --- BUTTONS --- */}
+        <button
+          className="glow-btn"
+          style={{ ...buttonStyle, top: "20%", left: "49.3%" }}
+          onClick={() => setActiveView("Mind")}
+          title="Mind"
+        />
+        <button
+          className="glow-btn"
+          style={{ ...buttonStyle, top: "35%", left: "49.3%" }}
+          onClick={() => setActiveView("Skin")}
+          title="Skin"
+        />
+        <button
+          className="glow-btn"
+          style={{ ...buttonStyle, top: "45%", left: "49.3%" }}
+          onClick={() => setActiveView("Body")}
+          title="Body"
+        />
+        <button
+          className="glow-btn"
+          style={{ ...buttonStyle, bottom: "6%", right: "49.3%" }}
+          onClick={() => setActiveView("Tasks")}
+          title="Tasks"
+        />
 
-      {/* --- BODY VIEW --- */}
-      {activeView === "Body" && (
-        <>
-          <div className="task-card left-card" style={{ position: "relative", ...applyLeftCardOverride }}>
-            <div style={{ position: "absolute", top: "60px", left: "10px" }}>
-              <GlowCircle value={percentage} ringColor="rgb(0,255,255)" textColor="#bffcff" />
-            </div>
-
-            <div style={{ position: "absolute", top: "60px", left: "230px" }}>
-              <GlowCircle value={secondPercentage} ringColor="#fff2a8" textColor="#fff2cc" />
-            </div>
-
-            <div style={{ position: "absolute", top: "260px", left: "30px", width: "90%" }}>
-              <h3 style={{ color: "#bffcff", textAlign: "center" }}>Muscle Progress</h3>
-              <LinearBar label="💪 Biceps" value={progress.biceps} max={MAX_SESSIONS} />
-              <LinearBar label="🏋️ Shoulders" value={progress.shoulders} max={MAX_SESSIONS} />
-              <LinearBar label="🤜 Triceps" value={progress.triceps} max={MAX_SESSIONS} />
-              <LinearBar label="🧘 Abs" value={progress.abs} max={MAX_SESSIONS} />
-              <LinearBar label="✋ Forearms" value={progress.forearms} max={MAX_SESSIONS} />
-
-              <div style={{ marginTop: 16, textAlign: "center" }}>
-                <div style={{ color: "#bffcff", marginBottom: 8 }}>Body reminder time</div>
-                <input
-                  type="time"
-                  value={bodyReminderTime}
-                  onChange={(e) => setBodyReminderTime(e.target.value)}
-                  className="input-glow"
-                  style={{ width: 160 }}
-                />
-              </div>
-            </div>
-          </div>
-
-          <div className="task-card right-card" style={applyRightCardOverride}>
-            <div className="panel-inner">
-              <div style={{ textAlign: "center" }}>
-                <label htmlFor="xValue" style={{ color: "#bffcff", fontSize: "20px", fontWeight: "400" }}>
-                  Weight:
-                </label>
-                <input
-                  id="xValue"
-                  type="number"
-                  value={inputValue}
-                  onChange={handleChange}
-                  className="input-glow"
-                />
+        {/* --- BODY VIEW --- */}
+        {activeView === "Body" && (
+          <>
+            <div className="task-card left-card" style={{ position: "relative", ...applyLeftCardOverride }}>
+              <div style={{ position: "absolute", top: "60px", left: "10px" }}>
+                <GlowCircle value={percentage} ringColor="rgb(0,255,255)" textColor="#bffcff" />
               </div>
 
-              <div className="panel-scroll" style={{ marginTop: 18 }}>
-                <h2 style={{ color: "#bffcff", textAlign: "center" }}>Daily Tasks</h2>
+              <div style={{ position: "absolute", top: "60px", left: "230px" }}>
+                <GlowCircle value={secondPercentage} ringColor="#fff2a8" textColor="#fff2cc" />
+              </div>
 
-                {tasks.map((task) => (
-                  <label
-                    key={task.id}
+              <div style={{ position: "absolute", top: "260px", left: "30px", width: "90%" }}>
+                <h3 style={{ color: "#bffcff", textAlign: "center" }}>Muscle Progress</h3>
+                <LinearBar label="💪 Biceps" value={progress.biceps} max={MAX_SESSIONS} />
+                <LinearBar label="🏋️ Shoulders" value={progress.shoulders} max={MAX_SESSIONS} />
+                <LinearBar label="🤜 Triceps" value={progress.triceps} max={MAX_SESSIONS} />
+                <LinearBar label="🧘 Abs" value={progress.abs} max={MAX_SESSIONS} />
+                <LinearBar label="✋ Forearms" value={progress.forearms} max={MAX_SESSIONS} />
+
+                <div style={{ marginTop: 16, textAlign: "center" }}>
+                  <div style={{ color: "#bffcff", marginBottom: 8 }}>Body reminder time</div>
+                  <input
+                    type="time"
+                    value={bodyReminderTime}
+                    onChange={(e) => setBodyReminderTime(e.target.value)}
+                    className="input-glow"
+                    style={{ width: 160 }}
+                  />
+                </div>
+              </div>
+            </div>
+
+            <div className="task-card right-card" style={applyRightCardOverride}>
+              <div className="panel-inner">
+                <div style={{ textAlign: "center" }}>
+                  <label htmlFor="xValue" style={{ color: "#bffcff", fontSize: "20px", fontWeight: "400" }}>
+                    Weight:
+                  </label>
+                  <input id="xValue" type="number" value={inputValue} onChange={handleChange} className="input-glow" />
+                </div>
+
+                <div className="panel-scroll" style={{ marginTop: 18 }}>
+                  <h2 style={{ color: "#bffcff", textAlign: "center" }}>Daily Tasks</h2>
+
+                  {tasks.map((task) => (
+                    <label
+                      key={task.id}
+                      style={{
+                        display: "block",
+                        margin: "8px 0",
+                        color: task.completed ? "#00ffcc" : "#bffcff",
+                        cursor: "pointer",
+                      }}
+                    >
+                      <input
+                        type="checkbox"
+                        checked={task.completed}
+                        onChange={() => toggleTask(task.id)}
+                        style={{ marginRight: "10px", transform: "scale(1.2)", cursor: "pointer" }}
+                      />
+                      {task.label}
+                    </label>
+                  ))}
+                </div>
+              </div>
+            </div>
+          </>
+        )}
+
+        {/* --- MIND VIEW --- */}
+        {activeView === "Mind" && (
+          <>
+            <div className="task-card left-card" style={{ position: "relative", ...applyLeftCardOverride }}>
+              <div style={{ position: "absolute", top: "50px", left: "110px" }}>
+                <GlowCircle
+                  value={mindTotals.percent}
+                  ringColor={getRingColor(mindTotals.percent)}
+                  textColor="#bffcff"
+                  barSize={MIND_TOTAL_RING_SIZE}
+                />
+              </div>
+
+              <div
+                style={{
+                  position: "absolute",
+                  top: "290px",
+                  left: "25px",
+                  width: "92%",
+                  display: "flex",
+                  flexWrap: "wrap",
+                  gap: "18px",
+                  justifyContent: "center",
+                }}
+              >
+                {mindSubjects.map((s) => {
+                  const val = getSubjectPercent(s.id);
+                  const ring = getRingColor(val);
+                  return (
+                    <div key={s.id} style={{ textAlign: "center" }}>
+                      <GlowCircle value={val} ringColor={ring} textColor="#bffcff" barSize={MIND_SUBJECT_RING_SIZE} />
+                      <div style={{ marginTop: "10px", color: "#bffcff", fontSize: "14px" }}>{s.label}</div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+
+            <div className="task-card right-card" style={applyRightCardOverride}>
+              <div className="panel-inner">
+                <h2 style={{ color: "#bffcff", textAlign: "center", marginBottom: "10px", fontSize: MIND_HEADER_FONT_SIZE }}>
+                  Mind
+                </h2>
+
+                {/* Add Subject */}
+                <div style={{ display: "flex", gap: 10, justifyContent: "center", marginBottom: 12 }}>
+                  <input
+                    type="text"
+                    className="input-glow"
+                    placeholder="New subject name..."
+                    value={newSubjectName}
+                    onChange={(e) => setNewSubjectName(e.target.value)}
+                    style={{ width: "60%", maxWidth: 240 }}
+                  />
+                  <button
+                    onClick={addMindSubject}
                     style={{
-                      display: "block",
-                      margin: "8px 0",
-                      color: task.completed ? "#00ffcc" : "#bffcff",
+                      padding: "10px 16px",
+                      borderRadius: "999px",
+                      border: "none",
                       cursor: "pointer",
+                      background: "linear-gradient(90deg, rgba(0,255,255,0.9), rgba(0,180,255,0.9))",
+                      color: "#001327",
+                      boxShadow: "0 0 18px rgba(0,255,255,0.8)",
                     }}
                   >
-                    <input
-                      type="checkbox"
-                      checked={task.completed}
-                      onChange={() => toggleTask(task.id)}
-                      style={{ marginRight: "10px", transform: "scale(1.2)", cursor: "pointer" }}
-                    />
-                    {task.label}
-                  </label>
-                ))}
+                    Add
+                  </button>
+                </div>
+
+                {/* Tabs */}
+                <div style={{ display: "flex", justifyContent: "center", gap: 10, marginBottom: 12 }}>
+                  <button
+                    onClick={() => setMindTab("tasks")}
+                    style={{
+                      padding: "8px 16px",
+                      borderRadius: "999px",
+                      border: "none",
+                      cursor: "pointer",
+                      background:
+                        mindTab === "tasks"
+                          ? "linear-gradient(90deg, rgba(0,255,255,0.9), rgba(0,180,255,0.9))"
+                          : "rgba(0, 30, 60, 0.35)",
+                      color: mindTab === "tasks" ? "#001327" : "#bffcff",
+                      boxShadow: mindTab === "tasks" ? "0 0 14px rgba(0,255,255,0.7)" : "none",
+                    }}
+                  >
+                    Tasks
+                  </button>
+                  <button
+                    onClick={() => setMindTab("links")}
+                    style={{
+                      padding: "8px 16px",
+                      borderRadius: "999px",
+                      border: "none",
+                      cursor: "pointer",
+                      background:
+                        mindTab === "links"
+                          ? "linear-gradient(90deg, rgba(0,255,255,0.9), rgba(0,180,255,0.9))"
+                          : "rgba(0, 30, 60, 0.35)",
+                      color: mindTab === "links" ? "#001327" : "#bffcff",
+                      boxShadow: mindTab === "links" ? "0 0 14px rgba(0,255,255,0.7)" : "none",
+                    }}
+                  >
+                    Links
+                  </button>
+                </div>
+
+                <div className="panel-scroll">
+                  {/* TASKS TAB */}
+                  {mindTab === "tasks" && (
+                    <>
+                      {mindSubjects.length === 0 ? (
+                        <p style={{ color: "#bffcff" }}>No subjects yet. Add one above.</p>
+                      ) : (
+                        <div
+                          style={{
+                            display: "grid",
+                            gridTemplateColumns: `repeat(auto-fit, minmax(${SUBJECT_CARD_MIN_WIDTH}px, 1fr))`,
+                            gap: 16,
+                            alignItems: "start",
+                          }}
+                        >
+                          {mindSubjects.map((subject) => {
+                            const enabled = !!mindReminderEnabled?.[subject.id];
+
+                            return (
+                              <div
+                                key={subject.id}
+                                style={{
+                                  borderRadius: 18,
+                                  border: "1px solid rgba(0,255,255,0.22)",
+                                  background: "rgba(0, 20, 50, 0.28)",
+                                  boxShadow: "0 0 14px rgba(0, 191, 255, 0.14)",
+                                  padding: SUBJECT_CARD_PADDING,
+                                  minHeight: SUBJECT_CARD_MIN_HEIGHT,
+                                  overflow: "hidden",
+                                }}
+                              >
+                                <div
+                                  style={{
+                                    display: "flex",
+                                    alignItems: "center",
+                                    justifyContent: "space-between",
+                                    gap: 12,
+                                    marginBottom: 12,
+                                  }}
+                                >
+                                  <div style={{ color: "#bffcff", fontWeight: 900, fontSize: 20, letterSpacing: 0.4 }}>
+                                    {subject.label}
+                                  </div>
+
+                                  <button
+                                    onClick={() => deleteMindSubject(subject.id)}
+                                    style={{
+                                      padding: "7px 12px",
+                                      borderRadius: 999,
+                                      border: "none",
+                                      cursor: "pointer",
+                                      background: "rgba(255, 77, 77, 0.92)",
+                                      color: "#001327",
+                                      boxShadow: "0 0 12px rgba(255, 77, 77, 0.55)",
+                                      fontSize: 12,
+                                      fontWeight: 800,
+                                    }}
+                                  >
+                                    Delete
+                                  </button>
+                                </div>
+
+                                <div
+                                  style={{
+                                    display: "grid",
+                                    gridTemplateColumns: "minmax(0, 1fr) auto",
+                                    columnGap: 12,
+                                    rowGap: 8,
+                                    alignItems: "center",
+                                    marginBottom: 12,
+                                  }}
+                                >
+                                  <div style={{ minWidth: 0 }}>
+                                    <div style={{ color: "#bffcff", fontSize: 12, opacity: 0.9, marginBottom: 6 }}>
+                                      Reminder time
+                                    </div>
+
+                                    <input
+                                      type="time"
+                                      value={mindReminderTimes?.[subject.id] || "20:30"}
+                                      onChange={(e) => setSubjectReminderTime(subject.id, e.target.value)}
+                                      className="input-glow"
+                                      style={{
+                                        width: "100%",
+                                        maxWidth: 170,
+                                        minWidth: 0,
+                                        opacity: enabled ? 1 : 0.45,
+                                        pointerEvents: enabled ? "auto" : "none",
+                                      }}
+                                    />
+                                  </div>
+
+                                  <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 6 }}>
+                                    <div
+                                      style={{
+                                        color: enabled ? "#00ffcc" : "#bffcff",
+                                        fontSize: 12,
+                                        fontWeight: 800,
+                                        opacity: 0.95,
+                                      }}
+                                    >
+                                      {enabled ? "ON" : "OFF"}
+                                    </div>
+
+                                    <ToggleSwitch checked={enabled} onChange={(val) => setSubjectReminderEnabled(subject.id, val)} />
+                                  </div>
+                                </div>
+
+                                <div style={{ display: "grid", gridTemplateColumns: "1fr", gap: 8 }}>
+                                  {(subject.units || []).map((unit) => (
+                                    <label
+                                      key={unit.id}
+                                      style={{
+                                        display: "flex",
+                                        alignItems: "center",
+                                        gap: 10,
+                                        padding: `${UNIT_ROW_PADDING_Y}px ${UNIT_ROW_PADDING_X}px`,
+                                        borderRadius: 14,
+                                        background: "rgba(0, 30, 60, 0.22)",
+                                        border: "1px solid rgba(0,255,255,0.12)",
+                                        color: unit.completed ? "#00ffcc" : "#bffcff",
+                                        cursor: "pointer",
+                                      }}
+                                    >
+                                      <input
+                                        type="checkbox"
+                                        checked={unit.completed}
+                                        onChange={() => toggleMindUnit(subject.id, unit.id)}
+                                        style={{ transform: "scale(1.1)", cursor: "pointer" }}
+                                      />
+                                      <span style={{ fontWeight: 800, fontSize: 16 }}>{unit.label}</span>
+                                    </label>
+                                  ))}
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      )}
+                    </>
+                  )}
+
+                  {/* LINKS TAB */}
+                  {mindTab === "links" && (
+                    <>
+                      {mindSubjects.length === 0 ? (
+                        <p style={{ color: "#bffcff" }}>No subjects yet. Add a subject first.</p>
+                      ) : (
+                        <>
+                          <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
+                            <span style={{ color: "#bffcff" }}>Subject:</span>
+                            <select
+                              value={linkSubjectId || mindSubjects[0]?.id || ""}
+                              onChange={(e) => setLinkSubjectId(e.target.value)}
+                              style={{
+                                flex: 1,
+                                padding: "10px 12px",
+                                borderRadius: 10,
+                                border: "1.5px solid rgba(0, 191, 255, 0.7)",
+                                background: "rgba(0, 30, 60, 0.3)",
+                                color: "#bffcff",
+                                outline: "none",
+                              }}
+                            >
+                              {mindSubjects.map((s) => (
+                                <option key={s.id} value={s.id} style={{ background: "#001327" }}>
+                                  {s.label}
+                                </option>
+                              ))}
+                            </select>
+                          </div>
+
+                          <div style={{ marginTop: 14, display: "flex", flexDirection: "column", gap: 10 }}>
+                            <input
+                              type="text"
+                              className="input-glow"
+                              placeholder="Link title..."
+                              value={newLinkTitle}
+                              onChange={(e) => setNewLinkTitle(e.target.value)}
+                              style={{ width: "100%", maxWidth: "100%" }}
+                            />
+                            <input
+                              type="url"
+                              className="input-glow"
+                              placeholder="https://..."
+                              value={newLinkUrl}
+                              onChange={(e) => setNewLinkUrl(e.target.value)}
+                              style={{ width: "100%", maxWidth: "100%" }}
+                            />
+                            <button
+                              onClick={addSubjectLink}
+                              style={{
+                                marginTop: 4,
+                                padding: "10px 26px",
+                                borderRadius: "999px",
+                                border: "none",
+                                fontSize: "16px",
+                                cursor: "pointer",
+                                background: "linear-gradient(90deg, rgba(0,255,255,0.9), rgba(0,180,255,0.9))",
+                                color: "#001327",
+                                boxShadow: "0 0 18px rgba(0,255,255,0.8)",
+                                alignSelf: "center",
+                              }}
+                            >
+                              Add Link
+                            </button>
+                          </div>
+
+                          <div style={{ marginTop: 16 }}>
+                            <h3 style={{ color: "#bffcff", marginBottom: 10 }}>Saved Links</h3>
+
+                            {(() => {
+                              const activeId = linkSubjectId || mindSubjects[0]?.id;
+                              const subj = mindSubjects.find((s) => s.id === activeId);
+                              const links = subj?.links || [];
+
+                              if (links.length === 0) return <p style={{ color: "#bffcff" }}>No links yet. Add one above.</p>;
+
+                              return links.map((l) => (
+                                <div
+                                  key={l.id}
+                                  style={{
+                                    display: "flex",
+                                    alignItems: "center",
+                                    justifyContent: "space-between",
+                                    gap: 10,
+                                    padding: "10px 12px",
+                                    marginBottom: 10,
+                                    borderRadius: 12,
+                                    border: "1px solid rgba(0,255,255,0.35)",
+                                    background: "rgba(0, 20, 50, 0.25)",
+                                    boxShadow: "0 0 10px rgba(0, 191, 255, 0.2)",
+                                  }}
+                                >
+                                  <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+                                    <span style={{ color: "#bffcff", fontWeight: 600 }}>{l.title}</span>
+                                    <a href={l.url} target="_blank" rel="noreferrer" style={{ color: "#00f0ff", fontSize: 13 }}>
+                                      {l.url}
+                                    </a>
+                                  </div>
+
+                                  <button
+                                    onClick={() => removeSubjectLink(activeId, l.id)}
+                                    style={{
+                                      padding: "8px 12px",
+                                      borderRadius: 999,
+                                      border: "none",
+                                      cursor: "pointer",
+                                      background: "rgba(255, 77, 77, 0.9)",
+                                      color: "#001327",
+                                      boxShadow: "0 0 12px rgba(255, 77, 77, 0.6)",
+                                    }}
+                                  >
+                                    Remove
+                                  </button>
+                                </div>
+                              ));
+                            })()}
+                          </div>
+                        </>
+                      )}
+                    </>
+                  )}
+                </div>
+
+                <div style={{ marginTop: 10, textAlign: "center", fontSize: 12, opacity: 0.85, color: "#bffcff" }}>
+                  Sync: {SYNC_ENABLED ? (isHydrated ? "✅ connected" : "⏳ loading...") : "⚠️ disabled (set VITE_API_BASE)"}
+                </div>
               </div>
             </div>
-          </div>
-        </>
-      )}
+          </>
+        )}
 
-      {/* --- MIND VIEW --- */}
-      {activeView === "Mind" && (
-        <>
-          <div className="task-card left-card" style={{ position: "relative", ...applyLeftCardOverride }}>
-            <div style={{ position: "absolute", top: "50px", left: "110px" }}>
-              <GlowCircle
-                value={mindTotals.percent}
-                ringColor={getRingColor(mindTotals.percent)}
-                textColor="#bffcff"
-                barSize={MIND_TOTAL_RING_SIZE}
-              />
+        {/* --- SKIN VIEW --- */}
+        {activeView === "Skin" && (
+          <>
+            <div className="task-card left-card" style={{ position: "relative", ...applyLeftCardOverride }}>
+              <div style={{ position: "absolute", top: "300px", left: "30px", width: "90%" }}>
+                <h3 style={{ color: "#bffcff", textAlign: "center" }}>Skin Routine Progress</h3>
+                <LinearBar label="🧴 Skin Sessions" value={skinSessions} max={MAX_SKIN_SESSIONS} />
+
+                <div style={{ marginTop: 18, textAlign: "center" }}>
+                  <div style={{ color: "#bffcff", marginBottom: 8 }}>Daily reminder time</div>
+                  <input
+                    type="time"
+                    value={skinReminderTime}
+                    onChange={(e) => setSkinReminderTime(e.target.value)}
+                    className="input-glow"
+                    style={{ width: 160 }}
+                  />
+                </div>
+              </div>
+
+              <div style={{ position: "absolute", top: "60px", left: "110px" }}>
+                <GlowCircle value={skinPercent} ringColor="rgb(0,255,255)" textColor="#bffcff" />
+              </div>
             </div>
 
-            <div
-              style={{
-                position: "absolute",
-                top: "290px",
-                left: "25px",
-                width: "92%",
-                display: "flex",
-                flexWrap: "wrap",
-                gap: "18px",
-                justifyContent: "center",
-              }}
-            >
-              {mindSubjects.map((s) => {
-                const val = getSubjectPercent(s.id);
-                const ring = getRingColor(val);
-                return (
-                  <div key={s.id} style={{ textAlign: "center" }}>
-                    <GlowCircle value={val} ringColor={ring} textColor="#bffcff" barSize={MIND_SUBJECT_RING_SIZE} />
-                    <div style={{ marginTop: "10px", color: "#bffcff", fontSize: "14px" }}>{s.label}</div>
-                  </div>
-                );
-              })}
+            <div className="task-card right-card" style={applyRightCardOverride}>
+              <div className="panel-inner">
+                <h2 style={{ color: "#bffcff", textAlign: "center", marginBottom: 10 }}>Tasks:</h2>
+
+                <div className="panel-scroll">
+                  {skinTasks.map((task) => (
+                    <label
+                      key={task.id}
+                      style={{
+                        display: "block",
+                        margin: "8px 0",
+                        color: task.completed ? "#00ffcc" : "#bffcff",
+                        cursor: "pointer",
+                      }}
+                    >
+                      <input
+                        type="checkbox"
+                        checked={task.completed}
+                        onChange={() => toggleSkinTask(task.id)}
+                        style={{ marginRight: "10px", transform: "scale(1.2)", cursor: "pointer" }}
+                      />
+                      {task.label}
+                    </label>
+                  ))}
+                </div>
+              </div>
             </div>
-          </div>
+          </>
+        )}
 
-          <div className="task-card right-card" style={applyRightCardOverride}>
-            {/* ✅ FIXED: full-height + proper scroll + bottom pad via App.css panel-inner/panel-scroll */}
-            <div className="panel-inner">
-              <h2 style={{ color: "#bffcff", textAlign: "center", marginBottom: "10px", fontSize: MIND_HEADER_FONT_SIZE }}>
-                Mind
-              </h2>
+        {/* --- TASKS VIEW --- */}
+        {activeView === "Tasks" && (
+          <>
+            <div className="task-card left-card" style={{ position: "relative", ...applyLeftCardOverride }}>
+              <div className="panel-inner">
+                <h2 style={{ color: "#bffcff", textAlign: "center", marginBottom: "14px" }}>Your Tasks</h2>
 
-              {/* Add Subject */}
-              <div style={{ display: "flex", gap: 10, justifyContent: "center", marginBottom: 12 }}>
+                <div className="panel-scroll" style={{ paddingBottom: 140 }}>
+                  {plannerTasks.length === 0 ? (
+                    <p style={{ color: "#bffcff", textAlign: "center" }}>No tasks yet. Add one on the right.</p>
+                  ) : (
+                    plannerTasks.map((task) => {
+                      const dueText = task.dueAt ? new Date(task.dueAt).toLocaleString() : "No due date";
+                      return (
+                        <div
+                          key={task.id}
+                          style={{
+                            borderRadius: 14,
+                            border: "1px solid rgba(0,255,255,0.25)",
+                            background: "rgba(0, 20, 50, 0.18)",
+                            padding: "10px 12px",
+                            marginBottom: 10,
+                            boxShadow: "0 0 10px rgba(0, 191, 255, 0.15)",
+                            display: "flex",
+                            alignItems: "flex-start",
+                            justifyContent: "space-between",
+                            gap: 10,
+                          }}
+                        >
+                          <label
+                            style={{
+                              display: "flex",
+                              gap: 10,
+                              alignItems: "flex-start",
+                              color: task.completed ? "#00ffcc" : "#bffcff",
+                              cursor: "pointer",
+                              flex: 1,
+                            }}
+                          >
+                            <input
+                              type="checkbox"
+                              checked={task.completed}
+                              onChange={() => togglePlannerTask(task.id)}
+                              style={{ marginTop: 4, transform: "scale(1.2)", cursor: "pointer" }}
+                            />
+                            <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+                              <div style={{ fontWeight: 700 }}>{task.label}</div>
+                              <div style={{ fontSize: 12, opacity: 0.9 }}>
+                                Due: <span style={{ color: "#00f0ff" }}>{dueText}</span>
+                              </div>
+                              <div style={{ fontSize: 12, opacity: 0.9 }}>
+                                Priority:{" "}
+                                <span style={{ color: "#00f0ff", fontWeight: 700 }}>
+                                  {String(task.priority || "medium").toUpperCase()}
+                                </span>
+                                {task.remindAt && (
+                                  <>
+                                    {" "}
+                                    • Remind:{" "}
+                                    <span style={{ color: "#00f0ff" }}>{new Date(task.remindAt).toLocaleString()}</span>
+                                  </>
+                                )}
+                                {task.notified && <span style={{ marginLeft: 8, color: "#ffd700" }}>🔔 sent</span>}
+                              </div>
+                            </div>
+                          </label>
+
+                          <button
+                            onClick={() => deletePlannerTask(task.id)}
+                            style={{
+                              padding: "8px 12px",
+                              borderRadius: 999,
+                              border: "none",
+                              cursor: "pointer",
+                              background: "rgba(255, 77, 77, 0.9)",
+                              color: "#001327",
+                              boxShadow: "0 0 12px rgba(255, 77, 77, 0.6)",
+                              marginTop: 2,
+                            }}
+                          >
+                            Delete
+                          </button>
+                        </div>
+                      );
+                    })
+                  )}
+                </div>
+              </div>
+            </div>
+
+            <div className="task-card right-card" style={applyRightCardOverride}>
+              <div className="panel-inner" style={{ alignItems: "center" }}>
+                <h2 style={{ color: "#bffcff", marginBottom: "16px", textAlign: "center" }}>Add Task</h2>
+
                 <input
                   type="text"
                   className="input-glow"
-                  placeholder="New subject name..."
-                  value={newSubjectName}
-                  onChange={(e) => setNewSubjectName(e.target.value)}
-                  style={{ width: "60%", maxWidth: 240 }}
+                  placeholder="New task..."
+                  value={newTaskLabel}
+                  onChange={(e) => setNewTaskLabel(e.target.value)}
+                  style={{ width: "80%", maxWidth: "320px" }}
                 />
+
+                <div style={{ marginTop: 14, width: "100%", textAlign: "center" }}>
+                  <div style={{ color: "#bffcff", marginBottom: 8 }}>Due date & time</div>
+                  <input
+                    type="datetime-local"
+                    value={newTaskDueAt}
+                    onChange={(e) => setNewTaskDueAt(e.target.value)}
+                    className="input-glow"
+                    style={{ width: "80%", maxWidth: "320px" }}
+                  />
+                </div>
+
+                <div style={{ marginTop: 14, width: "100%", textAlign: "center" }}>
+                  <div style={{ color: "#bffcff", marginBottom: 8 }}>Priority</div>
+                  <select
+                    value={newTaskPriority}
+                    onChange={(e) => setNewTaskPriority(e.target.value)}
+                    style={{
+                      width: "80%",
+                      maxWidth: 320,
+                      padding: "10px 12px",
+                      borderRadius: 10,
+                      border: "1.5px solid rgba(0, 191, 255, 0.7)",
+                      background: "rgba(0, 30, 60, 0.3)",
+                      color: "#bffcff",
+                      outline: "none",
+                    }}
+                  >
+                    <option value="low" style={{ background: "#001327" }}>
+                      Low
+                    </option>
+                    <option value="medium" style={{ background: "#001327" }}>
+                      Medium
+                    </option>
+                    <option value="high" style={{ background: "#001327" }}>
+                      High
+                    </option>
+                  </select>
+                </div>
+
+                <div style={{ marginTop: 14, width: "100%", textAlign: "center" }}>
+                  <div style={{ color: "#bffcff", marginBottom: 8 }}>Remind before (minutes)</div>
+                  <input
+                    type="number"
+                    min="0"
+                    value={newTaskRemindMins}
+                    onChange={(e) => setNewTaskRemindMins(e.target.value)}
+                    className="input-glow"
+                    style={{ width: "120px" }}
+                  />
+                </div>
+
                 <button
-                  onClick={addMindSubject}
+                  onClick={addPlannerTask}
                   style={{
-                    padding: "10px 16px",
+                    marginTop: "18px",
+                    padding: "10px 26px",
                     borderRadius: "999px",
                     border: "none",
+                    fontSize: "16px",
                     cursor: "pointer",
                     background: "linear-gradient(90deg, rgba(0,255,255,0.9), rgba(0,180,255,0.9))",
                     color: "#001327",
@@ -1242,560 +1748,19 @@ function App() {
                 >
                   Add
                 </button>
-              </div>
 
-              {/* Tabs */}
-              <div style={{ display: "flex", justifyContent: "center", gap: 10, marginBottom: 12 }}>
-                <button
-                  onClick={() => setMindTab("tasks")}
-                  style={{
-                    padding: "8px 16px",
-                    borderRadius: "999px",
-                    border: "none",
-                    cursor: "pointer",
-                    background:
-                      mindTab === "tasks"
-                        ? "linear-gradient(90deg, rgba(0,255,255,0.9), rgba(0,180,255,0.9))"
-                        : "rgba(0, 30, 60, 0.35)",
-                    color: mindTab === "tasks" ? "#001327" : "#bffcff",
-                    boxShadow: mindTab === "tasks" ? "0 0 14px rgba(0,255,255,0.7)" : "none",
-                  }}
-                >
-                  Tasks
-                </button>
-                <button
-                  onClick={() => setMindTab("links")}
-                  style={{
-                    padding: "8px 16px",
-                    borderRadius: "999px",
-                    border: "none",
-                    cursor: "pointer",
-                    background:
-                      mindTab === "links"
-                        ? "linear-gradient(90deg, rgba(0,255,255,0.9), rgba(0,180,255,0.9))"
-                        : "rgba(0, 30, 60, 0.35)",
-                    color: mindTab === "links" ? "#001327" : "#bffcff",
-                    boxShadow: mindTab === "links" ? "0 0 14px rgba(0,255,255,0.7)" : "none",
-                  }}
-                >
-                  Links
-                </button>
-              </div>
+                <div style={{ marginTop: 12, color: "#bffcff", fontSize: 12, opacity: 0.9, textAlign: "center" }}>
+                  Tip: reminders are enabled automatically.
+                </div>
 
-              {/* ✅ Scrollable area */}
-              <div className="panel-scroll">
-                {/* TASKS TAB */}
-                {mindTab === "tasks" && (
-                  <>
-                    {mindSubjects.length === 0 ? (
-                      <p style={{ color: "#bffcff" }}>No subjects yet. Add one above.</p>
-                    ) : (
-                      <div
-                        style={{
-                          display: "grid",
-                          gridTemplateColumns: `repeat(auto-fit, minmax(${SUBJECT_CARD_MIN_WIDTH}px, 1fr))`,
-                          gap: 16,
-                          alignItems: "start",
-                        }}
-                      >
-                        {mindSubjects.map((subject) => {
-                          const enabled = !!mindReminderEnabled?.[subject.id];
-
-                          return (
-                            <div
-                              key={subject.id}
-                              style={{
-                                borderRadius: 18,
-                                border: "1px solid rgba(0,255,255,0.22)",
-                                background: "rgba(0, 20, 50, 0.28)",
-                                boxShadow: "0 0 14px rgba(0, 191, 255, 0.14)",
-                                padding: SUBJECT_CARD_PADDING,
-                                minHeight: SUBJECT_CARD_MIN_HEIGHT,
-                                overflow: "hidden",
-                              }}
-                            >
-                              {/* Header */}
-                              <div
-                                style={{
-                                  display: "flex",
-                                  alignItems: "center",
-                                  justifyContent: "space-between",
-                                  gap: 12,
-                                  marginBottom: 12,
-                                }}
-                              >
-                                <div style={{ color: "#bffcff", fontWeight: 900, fontSize: 20, letterSpacing: 0.4 }}>
-                                  {subject.label}
-                                </div>
-
-                                <button
-                                  onClick={() => deleteMindSubject(subject.id)}
-                                  style={{
-                                    padding: "7px 12px",
-                                    borderRadius: 999,
-                                    border: "none",
-                                    cursor: "pointer",
-                                    background: "rgba(255, 77, 77, 0.92)",
-                                    color: "#001327",
-                                    boxShadow: "0 0 12px rgba(255, 77, 77, 0.55)",
-                                    fontSize: 12,
-                                    fontWeight: 800,
-                                  }}
-                                >
-                                  Delete
-                                </button>
-                              </div>
-
-                              {/* Reminder row */}
-                              <div
-                                style={{
-                                  display: "grid",
-                                  gridTemplateColumns: "minmax(0, 1fr) auto",
-                                  columnGap: 12,
-                                  rowGap: 8,
-                                  alignItems: "center",
-                                  marginBottom: 12,
-                                }}
-                              >
-                                <div style={{ minWidth: 0 }}>
-                                  <div style={{ color: "#bffcff", fontSize: 12, opacity: 0.9, marginBottom: 6 }}>
-                                    Reminder time
-                                  </div>
-
-                                  <input
-                                    type="time"
-                                    value={mindReminderTimes?.[subject.id] || "20:30"}
-                                    onChange={(e) => setSubjectReminderTime(subject.id, e.target.value)}
-                                    className="input-glow"
-                                    style={{
-                                      width: "100%",
-                                      maxWidth: 170,
-                                      minWidth: 0,
-                                      opacity: enabled ? 1 : 0.45,
-                                      pointerEvents: enabled ? "auto" : "none",
-                                    }}
-                                  />
-                                </div>
-
-                                <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 6 }}>
-                                  <div
-                                    style={{
-                                      color: enabled ? "#00ffcc" : "#bffcff",
-                                      fontSize: 12,
-                                      fontWeight: 800,
-                                      opacity: 0.95,
-                                    }}
-                                  >
-                                    {enabled ? "ON" : "OFF"}
-                                  </div>
-
-                                  <ToggleSwitch checked={enabled} onChange={(val) => setSubjectReminderEnabled(subject.id, val)} />
-                                </div>
-                              </div>
-
-                              {/* Units */}
-                              <div style={{ display: "grid", gridTemplateColumns: "1fr", gap: 8 }}>
-                                {(subject.units || []).map((unit) => (
-                                  <label
-                                    key={unit.id}
-                                    style={{
-                                      display: "flex",
-                                      alignItems: "center",
-                                      gap: 10,
-                                      padding: `${UNIT_ROW_PADDING_Y}px ${UNIT_ROW_PADDING_X}px`,
-                                      borderRadius: 14,
-                                      background: "rgba(0, 30, 60, 0.22)",
-                                      border: "1px solid rgba(0,255,255,0.12)",
-                                      color: unit.completed ? "#00ffcc" : "#bffcff",
-                                      cursor: "pointer",
-                                    }}
-                                  >
-                                    <input
-                                      type="checkbox"
-                                      checked={unit.completed}
-                                      onChange={() => toggleMindUnit(subject.id, unit.id)}
-                                      style={{ transform: "scale(1.1)", cursor: "pointer" }}
-                                    />
-                                    <span style={{ fontWeight: 800, fontSize: 16 }}>{unit.label}</span>
-                                  </label>
-                                ))}
-                              </div>
-                            </div>
-                          );
-                        })}
-                      </div>
-                    )}
-                  </>
-                )}
-
-                {/* LINKS TAB */}
-                {mindTab === "links" && (
-                  <>
-                    {mindSubjects.length === 0 ? (
-                      <p style={{ color: "#bffcff" }}>No subjects yet. Add a subject first.</p>
-                    ) : (
-                      <>
-                        <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
-                          <span style={{ color: "#bffcff" }}>Subject:</span>
-                          <select
-                            value={linkSubjectId || mindSubjects[0]?.id || ""}
-                            onChange={(e) => setLinkSubjectId(e.target.value)}
-                            style={{
-                              flex: 1,
-                              padding: "10px 12px",
-                              borderRadius: 10,
-                              border: "1.5px solid rgba(0, 191, 255, 0.7)",
-                              background: "rgba(0, 30, 60, 0.3)",
-                              color: "#bffcff",
-                              outline: "none",
-                            }}
-                          >
-                            {mindSubjects.map((s) => (
-                              <option key={s.id} value={s.id} style={{ background: "#001327" }}>
-                                {s.label}
-                              </option>
-                            ))}
-                          </select>
-                        </div>
-
-                        <div style={{ marginTop: 14, display: "flex", flexDirection: "column", gap: 10 }}>
-                          <input
-                            type="text"
-                            className="input-glow"
-                            placeholder="Link title..."
-                            value={newLinkTitle}
-                            onChange={(e) => setNewLinkTitle(e.target.value)}
-                            style={{ width: "100%", maxWidth: "100%" }}
-                          />
-                          <input
-                            type="url"
-                            className="input-glow"
-                            placeholder="https://..."
-                            value={newLinkUrl}
-                            onChange={(e) => setNewLinkUrl(e.target.value)}
-                            style={{ width: "100%", maxWidth: "100%" }}
-                          />
-                          <button
-                            onClick={addSubjectLink}
-                            style={{
-                              marginTop: 4,
-                              padding: "10px 26px",
-                              borderRadius: "999px",
-                              border: "none",
-                              fontSize: "16px",
-                              cursor: "pointer",
-                              background: "linear-gradient(90deg, rgba(0,255,255,0.9), rgba(0,180,255,0.9))",
-                              color: "#001327",
-                              boxShadow: "0 0 18px rgba(0,255,255,0.8)",
-                              alignSelf: "center",
-                            }}
-                          >
-                            Add Link
-                          </button>
-                        </div>
-
-                        <div style={{ marginTop: 16 }}>
-                          <h3 style={{ color: "#bffcff", marginBottom: 10 }}>Saved Links</h3>
-
-                          {(() => {
-                            const activeId = linkSubjectId || mindSubjects[0]?.id;
-                            const subj = mindSubjects.find((s) => s.id === activeId);
-                            const links = subj?.links || [];
-
-                            if (links.length === 0) return <p style={{ color: "#bffcff" }}>No links yet. Add one above.</p>;
-
-                            return links.map((l) => (
-                              <div
-                                key={l.id}
-                                style={{
-                                  display: "flex",
-                                  alignItems: "center",
-                                  justifyContent: "space-between",
-                                  gap: 10,
-                                  padding: "10px 12px",
-                                  marginBottom: 10,
-                                  borderRadius: 12,
-                                  border: "1px solid rgba(0,255,255,0.35)",
-                                  background: "rgba(0, 20, 50, 0.25)",
-                                  boxShadow: "0 0 10px rgba(0, 191, 255, 0.2)",
-                                }}
-                              >
-                                <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
-                                  <span style={{ color: "#bffcff", fontWeight: 600 }}>{l.title}</span>
-                                  <a href={l.url} target="_blank" rel="noreferrer" style={{ color: "#00f0ff", fontSize: 13 }}>
-                                    {l.url}
-                                  </a>
-                                </div>
-
-                                <button
-                                  onClick={() => removeSubjectLink(activeId, l.id)}
-                                  style={{
-                                    padding: "8px 12px",
-                                    borderRadius: 999,
-                                    border: "none",
-                                    cursor: "pointer",
-                                    background: "rgba(255, 77, 77, 0.9)",
-                                    color: "#001327",
-                                    boxShadow: "0 0 12px rgba(255, 77, 77, 0.6)",
-                                  }}
-                                >
-                                  Remove
-                                </button>
-                              </div>
-                            ));
-                          })()}
-                        </div>
-                      </>
-                    )}
-                  </>
-                )}
-              </div>
-
-              {/* Small status */}
-              <div style={{ marginTop: 10, textAlign: "center", fontSize: 12, opacity: 0.85, color: "#bffcff" }}>
-                Sync: {SYNC_ENABLED ? (isHydrated ? "✅ connected" : "⏳ loading...") : "⚠️ disabled (set VITE_API_BASE)"}
+                <div style={{ marginTop: 8, color: "#bffcff", fontSize: 12, opacity: 0.85, textAlign: "center" }}>
+                  Sync: {SYNC_ENABLED ? (isHydrated ? "✅ connected" : "⏳ loading...") : "⚠️ disabled (set VITE_API_BASE)"}
+                </div>
               </div>
             </div>
-          </div>
-        </>
-      )}
-
-      {/* --- SKIN VIEW --- */}
-      {activeView === "Skin" && (
-        <>
-          <div className="task-card left-card" style={{ position: "relative", ...applyLeftCardOverride }}>
-            <div style={{ position: "absolute", top: "300px", left: "30px", width: "90%" }}>
-              <h3 style={{ color: "#bffcff", textAlign: "center" }}>Skin Routine Progress</h3>
-              <LinearBar label="🧴 Skin Sessions" value={skinSessions} max={MAX_SKIN_SESSIONS} />
-
-              <div style={{ marginTop: 18, textAlign: "center" }}>
-                <div style={{ color: "#bffcff", marginBottom: 8 }}>Daily reminder time</div>
-                <input
-                  type="time"
-                  value={skinReminderTime}
-                  onChange={(e) => setSkinReminderTime(e.target.value)}
-                  className="input-glow"
-                  style={{ width: 160 }}
-                />
-              </div>
-            </div>
-
-            <div style={{ position: "absolute", top: "60px", left: "110px" }}>
-              <GlowCircle value={skinPercent} ringColor="rgb(0,255,255)" textColor="#bffcff" />
-            </div>
-          </div>
-
-          <div className="task-card right-card" style={applyRightCardOverride}>
-            <div className="panel-inner">
-              <h2 style={{ color: "#bffcff", textAlign: "center", marginBottom: 10 }}>Tasks:</h2>
-
-              <div className="panel-scroll">
-                {skinTasks.map((task) => (
-                  <label
-                    key={task.id}
-                    style={{
-                      display: "block",
-                      margin: "8px 0",
-                      color: task.completed ? "#00ffcc" : "#bffcff",
-                      cursor: "pointer",
-                    }}
-                  >
-                    <input
-                      type="checkbox"
-                      checked={task.completed}
-                      onChange={() => toggleSkinTask(task.id)}
-                      style={{ marginRight: "10px", transform: "scale(1.2)", cursor: "pointer" }}
-                    />
-                    {task.label}
-                  </label>
-                ))}
-              </div>
-            </div>
-          </div>
-        </>
-      )}
-
-      {/* --- TASKS VIEW --- */}
-      {activeView === "Tasks" && (
-        <>
-          <div className="task-card left-card" style={{ position: "relative", ...applyLeftCardOverride }}>
-            <div className="panel-inner">
-              <h2 style={{ color: "#bffcff", textAlign: "center", marginBottom: "14px" }}>Your Tasks</h2>
-
-              <div className="panel-scroll" style={{ paddingBottom: 140 }}>
-                {plannerTasks.length === 0 ? (
-                  <p style={{ color: "#bffcff", textAlign: "center" }}>No tasks yet. Add one on the right.</p>
-                ) : (
-                  plannerTasks.map((task) => {
-                    const dueText = task.dueAt ? new Date(task.dueAt).toLocaleString() : "No due date";
-                    return (
-                      <div
-                        key={task.id}
-                        style={{
-                          borderRadius: 14,
-                          border: "1px solid rgba(0,255,255,0.25)",
-                          background: "rgba(0, 20, 50, 0.18)",
-                          padding: "10px 12px",
-                          marginBottom: 10,
-                          boxShadow: "0 0 10px rgba(0, 191, 255, 0.15)",
-                          display: "flex",
-                          alignItems: "flex-start",
-                          justifyContent: "space-between",
-                          gap: 10,
-                        }}
-                      >
-                        <label
-                          style={{
-                            display: "flex",
-                            gap: 10,
-                            alignItems: "flex-start",
-                            color: task.completed ? "#00ffcc" : "#bffcff",
-                            cursor: "pointer",
-                            flex: 1,
-                          }}
-                        >
-                          <input
-                            type="checkbox"
-                            checked={task.completed}
-                            onChange={() => togglePlannerTask(task.id)}
-                            style={{ marginTop: 4, transform: "scale(1.2)", cursor: "pointer" }}
-                          />
-                          <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
-                            <div style={{ fontWeight: 700 }}>{task.label}</div>
-                            <div style={{ fontSize: 12, opacity: 0.9 }}>
-                              Due: <span style={{ color: "#00f0ff" }}>{dueText}</span>
-                            </div>
-                            <div style={{ fontSize: 12, opacity: 0.9 }}>
-                              Priority:{" "}
-                              <span style={{ color: "#00f0ff", fontWeight: 700 }}>
-                                {String(task.priority || "medium").toUpperCase()}
-                              </span>
-                              {task.remindAt && (
-                                <>
-                                  {" "}
-                                  • Remind: <span style={{ color: "#00f0ff" }}>{new Date(task.remindAt).toLocaleString()}</span>
-                                </>
-                              )}
-                              {task.notified && <span style={{ marginLeft: 8, color: "#ffd700" }}>🔔 sent</span>}
-                            </div>
-                          </div>
-                        </label>
-
-                        <button
-                          onClick={() => deletePlannerTask(task.id)}
-                          style={{
-                            padding: "8px 12px",
-                            borderRadius: 999,
-                            border: "none",
-                            cursor: "pointer",
-                            background: "rgba(255, 77, 77, 0.9)",
-                            color: "#001327",
-                            boxShadow: "0 0 12px rgba(255, 77, 77, 0.6)",
-                            marginTop: 2,
-                          }}
-                        >
-                          Delete
-                        </button>
-                      </div>
-                    );
-                  })
-                )}
-              </div>
-            </div>
-          </div>
-
-          <div className="task-card right-card" style={applyRightCardOverride}>
-            <div className="panel-inner" style={{ alignItems: "center" }}>
-              <h2 style={{ color: "#bffcff", marginBottom: "16px", textAlign: "center" }}>Add Task</h2>
-
-              <input
-                type="text"
-                className="input-glow"
-                placeholder="New task..."
-                value={newTaskLabel}
-                onChange={(e) => setNewTaskLabel(e.target.value)}
-                style={{ width: "80%", maxWidth: "320px" }}
-              />
-
-              <div style={{ marginTop: 14, width: "100%", textAlign: "center" }}>
-                <div style={{ color: "#bffcff", marginBottom: 8 }}>Due date & time</div>
-                <input
-                  type="datetime-local"
-                  value={newTaskDueAt}
-                  onChange={(e) => setNewTaskDueAt(e.target.value)}
-                  className="input-glow"
-                  style={{ width: "80%", maxWidth: "320px" }}
-                />
-              </div>
-
-              <div style={{ marginTop: 14, width: "100%", textAlign: "center" }}>
-                <div style={{ color: "#bffcff", marginBottom: 8 }}>Priority</div>
-                <select
-                  value={newTaskPriority}
-                  onChange={(e) => setNewTaskPriority(e.target.value)}
-                  style={{
-                    width: "80%",
-                    maxWidth: 320,
-                    padding: "10px 12px",
-                    borderRadius: 10,
-                    border: "1.5px solid rgba(0, 191, 255, 0.7)",
-                    background: "rgba(0, 30, 60, 0.3)",
-                    color: "#bffcff",
-                    outline: "none",
-                  }}
-                >
-                  <option value="low" style={{ background: "#001327" }}>
-                    Low
-                  </option>
-                  <option value="medium" style={{ background: "#001327" }}>
-                    Medium
-                  </option>
-                  <option value="high" style={{ background: "#001327" }}>
-                    High
-                  </option>
-                </select>
-              </div>
-
-              <div style={{ marginTop: 14, width: "100%", textAlign: "center" }}>
-                <div style={{ color: "#bffcff", marginBottom: 8 }}>Remind before (minutes)</div>
-                <input
-                  type="number"
-                  min="0"
-                  value={newTaskRemindMins}
-                  onChange={(e) => setNewTaskRemindMins(e.target.value)}
-                  className="input-glow"
-                  style={{ width: "120px" }}
-                />
-              </div>
-
-              <button
-                onClick={addPlannerTask}
-                style={{
-                  marginTop: "18px",
-                  padding: "10px 26px",
-                  borderRadius: "999px",
-                  border: "none",
-                  fontSize: "16px",
-                  cursor: "pointer",
-                  background: "linear-gradient(90deg, rgba(0,255,255,0.9), rgba(0,180,255,0.9))",
-                  color: "#001327",
-                  boxShadow: "0 0 18px rgba(0,255,255,0.8)",
-                }}
-              >
-                Add
-              </button>
-
-              <div style={{ marginTop: 12, color: "#bffcff", fontSize: 12, opacity: 0.9, textAlign: "center" }}>
-                Tip: reminders are enabled automatically.
-              </div>
-
-              <div style={{ marginTop: 8, color: "#bffcff", fontSize: 12, opacity: 0.85, textAlign: "center" }}>
-                Sync: {SYNC_ENABLED ? (isHydrated ? "✅ connected" : "⏳ loading...") : "⚠️ disabled (set VITE_API_BASE)"}
-              </div>
-            </div>
-          </div>
-        </>
-      )}
+          </>
+        )}
+      </div>
     </div>
   );
 }
