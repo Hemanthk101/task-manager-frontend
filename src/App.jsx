@@ -8,40 +8,83 @@ import "./App.css";
 /**
  * ✅ SYNC SETTINGS
  * Put these in your frontend .env:
- * VITE_API_BASE="http://localhost:8080"  (or your deployed backend URL)
+ * VITE_API_BASE="http://localhost:8080"  (or your backend URL)
  * VITE_USER_ID="demo"
  */
 const API_BASE = import.meta.env.VITE_API_BASE || "";
 const USER_ID = import.meta.env.VITE_USER_ID || "demo";
 const SYNC_ENABLED = !!API_BASE;
 
+// ---------- small helpers ----------
+const clamp = (n, min, max) => Math.max(min, Math.min(max, n));
+
+function useViewport() {
+  const [vp, setVp] = useState(() => ({
+    w: window.innerWidth,
+    h: window.innerHeight,
+  }));
+
+  useEffect(() => {
+    const onResize = () => setVp({ w: window.innerWidth, h: window.innerHeight });
+    window.addEventListener("resize", onResize);
+    window.addEventListener("orientationchange", onResize);
+    return () => {
+      window.removeEventListener("resize", onResize);
+      window.removeEventListener("orientationchange", onResize);
+    };
+  }, []);
+
+  return vp;
+}
+
 function App() {
   // ---------------------------------
-  // ✅ UI SIZE/HEIGHT CONTROLS (edit here)
+  // ✅ Responsive “STAGE” layout (centers the whole UI)
+  // - NO zoom scaling
+  // - Keeps the SAME laptop interface (two cards side-by-side)
+  // - Mobile supported best in LANDSCAPE
   // ---------------------------------
-  const SUBJECT_CARD_MIN_WIDTH = 280;
-  const SUBJECT_CARD_PADDING = 16;
-  const SUBJECT_CARD_MIN_HEIGHT = 0;
+  const { w: VW, h: VH } = useViewport();
+  const isLandscape = VW >= VH;
 
-  const UNIT_ROW_PADDING_Y = 10;
-  const UNIT_ROW_PADDING_X = 10;
+  // The centered stage that holds your whole UI (cards + buttons)
+  const STAGE_MAX_W = 1500;
+  const STAGE_MAX_H = 900;
 
-  // Scroll areas (fallback if you don’t want CSS scroll utility)
-  const MIND_TASKS_SCROLL_MAXH = 560;
-  const MIND_LINKS_SCROLL_MAXH = 520;
-  const TASKS_LEFT_SCROLL_MAXH = 620;
+  const stageW = Math.floor(clamp(VW * 0.98, 360, STAGE_MAX_W));
+  const stageH = Math.floor(clamp(VH * 0.95, 520, STAGE_MAX_H));
 
-  // Rings (left card)
-  const MIND_TOTAL_RING_SIZE = 200;
-  const MIND_SUBJECT_RING_SIZE = 120;
+  // Keep two-card layout always; shrink widths/gaps on smaller screens
+  const gap = Math.floor(clamp(stageW * 0.035, 16, 44));
+  let cardW = Math.floor((stageW - gap) / 2);
+  cardW = Math.floor(clamp(cardW, 320, 560)); // responsive sizing, not scaling
 
-  const MIND_HEADER_FONT_SIZE = 26;
+  // Ensure it never overflows the stage
+  if (cardW * 2 + gap > stageW) cardW = Math.floor((stageW - gap) / 2);
 
-  // Optional overrides (leave null to use App.css variables)
-  const RIGHT_CARD_WIDTH = null;
-  const LEFT_CARD_WIDTH = null;
-  const RIGHT_CARD_HEIGHT = null;
-  const LEFT_CARD_HEIGHT = null;
+  const cardH = Math.floor(clamp(stageH * 0.92, 520, 860));
+  const cardTop = Math.floor(clamp((stageH - cardH) / 2, 8, 48));
+
+  // Dynamic ring sizes based on available card width (still same UI, just responsive sizing)
+  const RING_BIG = Math.floor(clamp(cardW * 0.42, 160, 200));
+  const RING_MID = Math.floor(clamp(cardW * 0.30, 110, 140));
+
+  // Body: two rings side-by-side centered
+  const bodyRingGap = Math.floor(clamp(cardW * 0.06, 16, 28));
+  const ringRowW = RING_BIG * 2 + bodyRingGap;
+  const ringStartX = Math.floor(clamp((cardW - ringRowW) / 2, 8, 40));
+  const bodyRingTop = Math.floor(clamp(cardH * 0.06, 40, 70));
+
+  // Mind: big ring centered near top
+  const mindTotalTop = Math.floor(clamp(cardH * 0.06, 40, 70));
+  const mindTotalLeft = Math.floor((cardW - RING_BIG) / 2);
+
+  // Skin: ring centered near top
+  const skinRingTop = Math.floor(clamp(cardH * 0.08, 50, 80));
+  const skinRingLeft = Math.floor((cardW - RING_BIG) / 2);
+
+  // Mind header font responsive
+  const MIND_HEADER_FONT_SIZE = Math.floor(clamp(cardW * 0.06, 20, 26));
 
   // ---------------------------------
   // Storage helpers
@@ -70,7 +113,7 @@ function App() {
     const y = parts.find((p) => p.type === "year")?.value || "0000";
     const m = parts.find((p) => p.type === "month")?.value || "00";
     const d = parts.find((p) => p.type === "day")?.value || "00";
-    return `${y}-${m}-${d}`; // YYYY-MM-DD (IST)
+    return `${y}-${m}-${d}`;
   };
 
   const getISTNowMinutes = () => {
@@ -86,7 +129,6 @@ function App() {
     return hh * 60 + mm;
   };
 
-  // Month key (for optional monthly resets)
   const getMonthKey = () => {
     const d = new Date();
     return `${d.getFullYear()}-${d.getMonth()}`;
@@ -110,7 +152,7 @@ function App() {
   };
 
   // ---------------------------------
-  // Defaults (same as your app)
+  // Defaults
   // ---------------------------------
   const defaultBodyTasks = useMemo(
     () => [
@@ -305,9 +347,7 @@ function App() {
     return s.bodyTime || "19:00";
   });
 
-  const [bodyLastReminderDay, setBodyLastReminderDay] = useState(() => {
-    return localStorage.getItem("bodyLastReminderDay") || "";
-  });
+  const [bodyLastReminderDay, setBodyLastReminderDay] = useState(() => localStorage.getItem("bodyLastReminderDay") || "");
 
   // ---------------------------------
   // Mind reminders (per subject)
@@ -386,7 +426,6 @@ function App() {
           console.error(e);
         }
       }
-
       setIsHydrated(true);
     };
 
@@ -678,7 +717,9 @@ function App() {
       const nowMinutesIST = getISTNowMinutes();
       const todayIST = getISTDayKey();
 
-      const [shh, smm] = String(skinReminderTime || "21:00").split(":").map((x) => parseInt(x, 10));
+      const [shh, smm] = String(skinReminderTime || "21:00")
+        .split(":")
+        .map((x) => parseInt(x, 10));
       if (Number.isFinite(shh) && Number.isFinite(smm)) {
         const target = shh * 60 + smm;
         const lastDay = localStorage.getItem("skinLastReminderDay");
@@ -692,7 +733,9 @@ function App() {
         }
       }
 
-      const [bhh, bmm] = String(bodyReminderTime || "19:00").split(":").map((x) => parseInt(x, 10));
+      const [bhh, bmm] = String(bodyReminderTime || "19:00")
+        .split(":")
+        .map((x) => parseInt(x, 10));
       if (Number.isFinite(bhh) && Number.isFinite(bmm)) {
         const target = bhh * 60 + bmm;
         const incomplete = tasks.some((t) => !t.completed);
@@ -719,7 +762,9 @@ function App() {
         if (!incomplete) return;
 
         const timeStr = times[subj.id] || "20:30";
-        const [mhh, mmm] = String(timeStr).split(":").map((x) => parseInt(x, 10));
+        const [mhh, mmm] = String(timeStr)
+          .split(":")
+          .map((x) => parseInt(x, 10));
         if (!Number.isFinite(mhh) || !Number.isFinite(mmm)) return;
 
         const target = mhh * 60 + mmm;
@@ -833,10 +878,7 @@ function App() {
   // Planner helpers
   // ---------------------------------
   const deletePlannerTask = (id) => setPlannerTasks((prev) => prev.filter((t) => t.id !== id));
-
-  const togglePlannerTask = (id) => {
-    setPlannerTasks((prev) => prev.map((t) => (t.id === id ? { ...t, completed: !t.completed } : t)));
-  };
+  const togglePlannerTask = (id) => setPlannerTasks((prev) => prev.map((t) => (t.id === id ? { ...t, completed: !t.completed } : t)));
 
   const addPlannerTask = () => {
     const label = newTaskLabel.trim();
@@ -860,7 +902,6 @@ function App() {
     };
 
     setPlannerTasks((prev) => [task, ...prev]);
-
     setNewTaskLabel("");
     setNewTaskDueAt("");
     setNewTaskPriority("medium");
@@ -990,12 +1031,11 @@ function App() {
   }, [skinTasks]);
 
   // ---------------------------------
-  // ✅ RESPONSIVE (NO SCALE, NO STACK):
-  // We lock the UI to a desktop canvas and let smaller screens pan/scroll.
+  // ✅ Styles: center everything + keep same interface
   // ---------------------------------
   const containerStyle = {
-    width: "1366px", // ✅ locked "laptop canvas"
-    height: "768px", // ✅ locked "laptop canvas"
+    width: "100vw",
+    height: "100vh",
     margin: 0,
     padding: 0,
     position: "relative",
@@ -1005,6 +1045,16 @@ function App() {
     backgroundPosition: "center",
     backgroundRepeat: "no-repeat",
     overflow: "hidden",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+  };
+
+  // This is the centered “stage” that fixes the left-shift issue.
+  const stageStyle = {
+    position: "relative",
+    width: `${stageW}px`,
+    height: `${stageH}px`,
   };
 
   const buttonStyle = {
@@ -1027,26 +1077,55 @@ function App() {
     zIndex: 3,
   };
 
-  const rightCardOverride = {
-    ...(RIGHT_CARD_WIDTH ? { width: RIGHT_CARD_WIDTH } : {}),
-    ...(RIGHT_CARD_HEIGHT ? { height: RIGHT_CARD_HEIGHT } : {}),
+  // Cards are pinned left/right inside the stage (always centered as a group)
+  const leftCardBox = {
+    position: "absolute",
+    left: 0,
+    top: `${cardTop}px`,
+    width: `${cardW}px`,
+    height: `${cardH}px`,
   };
 
-  const leftCardOverride = {
-    ...(LEFT_CARD_WIDTH ? { width: LEFT_CARD_WIDTH } : {}),
-    ...(LEFT_CARD_HEIGHT ? { height: LEFT_CARD_HEIGHT } : {}),
+  const rightCardBox = {
+    position: "absolute",
+    right: 0,
+    top: `${cardTop}px`,
+    width: `${cardW}px`,
+    height: `${cardH}px`,
   };
 
-  const applyRightCardOverride = RIGHT_CARD_WIDTH || RIGHT_CARD_HEIGHT ? rightCardOverride : undefined;
-  const applyLeftCardOverride = LEFT_CARD_WIDTH || LEFT_CARD_HEIGHT ? leftCardOverride : undefined;
+  // Optional: show a gentle hint in portrait (still keeps UI, but landscape is best)
+  const showRotateHint = !isLandscape && VW < 900;
 
   // ---------------------------------
   // Render
   // ---------------------------------
   return (
-    <div className="desktop-viewport">
-      <div className="desktop-canvas" style={containerStyle}>
-        {/* --- BUTTONS --- */}
+    <div style={containerStyle}>
+      <div style={stageStyle}>
+        {showRotateHint && (
+          <div
+            style={{
+              position: "absolute",
+              top: 10,
+              left: "50%",
+              transform: "translateX(-50%)",
+              padding: "8px 12px",
+              borderRadius: 999,
+              border: "1px solid rgba(0,255,255,0.25)",
+              background: "rgba(0, 20, 50, 0.35)",
+              color: "#bffcff",
+              fontSize: 12,
+              zIndex: 10,
+              boxShadow: "0 0 12px rgba(0,255,255,0.15)",
+              pointerEvents: "none",
+            }}
+          >
+            Rotate to landscape for best layout ✨
+          </div>
+        )}
+
+        {/* --- BUTTONS (relative to centered stage) --- */}
         <button
           className="glow-btn"
           style={{ ...buttonStyle, top: "20%", left: "49.3%" }}
@@ -1075,16 +1154,17 @@ function App() {
         {/* --- BODY VIEW --- */}
         {activeView === "Body" && (
           <>
-            <div className="task-card left-card" style={{ position: "relative", ...applyLeftCardOverride }}>
-              <div style={{ position: "absolute", top: "60px", left: "10px" }}>
-                <GlowCircle value={percentage} ringColor="rgb(0,255,255)" textColor="#bffcff" />
+            <div className="task-card left-card" style={leftCardBox}>
+              {/* rings centered */}
+              <div style={{ position: "absolute", top: `${bodyRingTop}px`, left: `${ringStartX}px` }}>
+                <GlowCircle value={percentage} ringColor="rgb(0,255,255)" textColor="#bffcff" barSize={RING_BIG} />
               </div>
 
-              <div style={{ position: "absolute", top: "60px", left: "230px" }}>
-                <GlowCircle value={secondPercentage} ringColor="#fff2a8" textColor="#fff2cc" />
+              <div style={{ position: "absolute", top: `${bodyRingTop}px`, left: `${ringStartX + RING_BIG + bodyRingGap}px` }}>
+                <GlowCircle value={secondPercentage} ringColor="#fff2a8" textColor="#fff2cc" barSize={RING_BIG} />
               </div>
 
-              <div style={{ position: "absolute", top: "260px", left: "30px", width: "90%" }}>
+              <div style={{ position: "absolute", top: `${bodyRingTop + RING_BIG + 20}px`, left: "18px", width: "calc(100% - 36px)" }}>
                 <h3 style={{ color: "#bffcff", textAlign: "center" }}>Muscle Progress</h3>
                 <LinearBar label="💪 Biceps" value={progress.biceps} max={MAX_SESSIONS} />
                 <LinearBar label="🏋️ Shoulders" value={progress.shoulders} max={MAX_SESSIONS} />
@@ -1105,7 +1185,7 @@ function App() {
               </div>
             </div>
 
-            <div className="task-card right-card" style={applyRightCardOverride}>
+            <div className="task-card right-card" style={rightCardBox}>
               <div className="panel-inner">
                 <div style={{ textAlign: "center" }}>
                   <label htmlFor="xValue" style={{ color: "#bffcff", fontSize: "20px", fontWeight: "400" }}>
@@ -1145,22 +1225,17 @@ function App() {
         {/* --- MIND VIEW --- */}
         {activeView === "Mind" && (
           <>
-            <div className="task-card left-card" style={{ position: "relative", ...applyLeftCardOverride }}>
-              <div style={{ position: "absolute", top: "50px", left: "110px" }}>
-                <GlowCircle
-                  value={mindTotals.percent}
-                  ringColor={getRingColor(mindTotals.percent)}
-                  textColor="#bffcff"
-                  barSize={MIND_TOTAL_RING_SIZE}
-                />
+            <div className="task-card left-card" style={leftCardBox}>
+              <div style={{ position: "absolute", top: `${mindTotalTop}px`, left: `${mindTotalLeft}px` }}>
+                <GlowCircle value={mindTotals.percent} ringColor={getRingColor(mindTotals.percent)} textColor="#bffcff" barSize={RING_BIG} />
               </div>
 
               <div
                 style={{
                   position: "absolute",
-                  top: "290px",
-                  left: "25px",
-                  width: "92%",
+                  top: `${mindTotalTop + RING_BIG + 18}px`,
+                  left: "18px",
+                  width: "calc(100% - 36px)",
                   display: "flex",
                   flexWrap: "wrap",
                   gap: "18px",
@@ -1172,7 +1247,7 @@ function App() {
                   const ring = getRingColor(val);
                   return (
                     <div key={s.id} style={{ textAlign: "center" }}>
-                      <GlowCircle value={val} ringColor={ring} textColor="#bffcff" barSize={MIND_SUBJECT_RING_SIZE} />
+                      <GlowCircle value={val} ringColor={ring} textColor="#bffcff" barSize={RING_MID} />
                       <div style={{ marginTop: "10px", color: "#bffcff", fontSize: "14px" }}>{s.label}</div>
                     </div>
                   );
@@ -1180,7 +1255,7 @@ function App() {
               </div>
             </div>
 
-            <div className="task-card right-card" style={applyRightCardOverride}>
+            <div className="task-card right-card" style={rightCardBox}>
               <div className="panel-inner">
                 <h2 style={{ color: "#bffcff", textAlign: "center", marginBottom: "10px", fontSize: MIND_HEADER_FONT_SIZE }}>
                   Mind
@@ -1260,7 +1335,7 @@ function App() {
                         <div
                           style={{
                             display: "grid",
-                            gridTemplateColumns: `repeat(auto-fit, minmax(${SUBJECT_CARD_MIN_WIDTH}px, 1fr))`,
+                            gridTemplateColumns: `repeat(auto-fit, minmax(${Math.floor(clamp(cardW * 0.54, 250, 320))}px, 1fr))`,
                             gap: 16,
                             alignItems: "start",
                           }}
@@ -1276,8 +1351,7 @@ function App() {
                                   border: "1px solid rgba(0,255,255,0.22)",
                                   background: "rgba(0, 20, 50, 0.28)",
                                   boxShadow: "0 0 14px rgba(0, 191, 255, 0.14)",
-                                  padding: SUBJECT_CARD_PADDING,
-                                  minHeight: SUBJECT_CARD_MIN_HEIGHT,
+                                  padding: 16,
                                   overflow: "hidden",
                                 }}
                               >
@@ -1366,7 +1440,7 @@ function App() {
                                         display: "flex",
                                         alignItems: "center",
                                         gap: 10,
-                                        padding: `${UNIT_ROW_PADDING_Y}px ${UNIT_ROW_PADDING_X}px`,
+                                        padding: `10px 10px`,
                                         borderRadius: 14,
                                         background: "rgba(0, 30, 60, 0.22)",
                                         border: "1px solid rgba(0,255,255,0.12)",
@@ -1526,8 +1600,12 @@ function App() {
         {/* --- SKIN VIEW --- */}
         {activeView === "Skin" && (
           <>
-            <div className="task-card left-card" style={{ position: "relative", ...applyLeftCardOverride }}>
-              <div style={{ position: "absolute", top: "300px", left: "30px", width: "90%" }}>
+            <div className="task-card left-card" style={leftCardBox}>
+              <div style={{ position: "absolute", top: `${skinRingTop}px`, left: `${skinRingLeft}px` }}>
+                <GlowCircle value={skinPercent} ringColor="rgb(0,255,255)" textColor="#bffcff" barSize={RING_BIG} />
+              </div>
+
+              <div style={{ position: "absolute", top: `${skinRingTop + RING_BIG + 22}px`, left: "18px", width: "calc(100% - 36px)" }}>
                 <h3 style={{ color: "#bffcff", textAlign: "center" }}>Skin Routine Progress</h3>
                 <LinearBar label="🧴 Skin Sessions" value={skinSessions} max={MAX_SKIN_SESSIONS} />
 
@@ -1542,13 +1620,9 @@ function App() {
                   />
                 </div>
               </div>
-
-              <div style={{ position: "absolute", top: "60px", left: "110px" }}>
-                <GlowCircle value={skinPercent} ringColor="rgb(0,255,255)" textColor="#bffcff" />
-              </div>
             </div>
 
-            <div className="task-card right-card" style={applyRightCardOverride}>
+            <div className="task-card right-card" style={rightCardBox}>
               <div className="panel-inner">
                 <h2 style={{ color: "#bffcff", textAlign: "center", marginBottom: 10 }}>Tasks:</h2>
 
@@ -1581,7 +1655,7 @@ function App() {
         {/* --- TASKS VIEW --- */}
         {activeView === "Tasks" && (
           <>
-            <div className="task-card left-card" style={{ position: "relative", ...applyLeftCardOverride }}>
+            <div className="task-card left-card" style={leftCardBox}>
               <div className="panel-inner">
                 <h2 style={{ color: "#bffcff", textAlign: "center", marginBottom: "14px" }}>Your Tasks</h2>
 
@@ -1668,7 +1742,7 @@ function App() {
               </div>
             </div>
 
-            <div className="task-card right-card" style={applyRightCardOverride}>
+            <div className="task-card right-card" style={rightCardBox}>
               <div className="panel-inner" style={{ alignItems: "center" }}>
                 <h2 style={{ color: "#bffcff", marginBottom: "16px", textAlign: "center" }}>Add Task</h2>
 
