@@ -198,3 +198,31 @@ html { -webkit-text-size-adjust: 100%; }
   position: relative;
   margin: 0 auto;                 /* center when screen is larger */
 }
+/* ==============================
+   MOBILE = DESKTOP LOOK (SCALED)
+   ============================== */
+
+.mode-mobile-desktop {
+  width: 100vw;
+  height: 100vh;
+  overflow: hidden;
+  display: flex;
+  align-items: flex-start;
+  justify-content: flex-start;
+  background: #00093eff; /* same vibe as your app */
+}
+
+/* IMPORTANT:
+   AppBase root returns: <div style={containerStyle}>
+   That has width:100vw height:100vh inline.
+   We override it here so it becomes a fixed desktop canvas.
+*/
+.mode-mobile-desktop .desktop-canvas-wrap > div {
+  width: 1440px !important;
+  height: 900px !important;
+}
+
+/* Optional: prevent any accidental scrollbars inside */
+.mode-mobile-desktop .desktop-canvas-wrap {
+  overflow: hidden;
+}
