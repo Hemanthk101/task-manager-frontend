@@ -4,7 +4,7 @@ import AppBase from "./AppBase.jsx";
 
 const DESKTOP_W = 1920;
 const DESKTOP_H = 1080;
-const SCALE_BOOST = 1.08;
+const SCALE_BOOST = 1.15;
 
 export default function MobileApp() {
   const shellRef = useRef(null);
