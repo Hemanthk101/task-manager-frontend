@@ -181,84 +181,15 @@ input[type="checkbox"]:checked {
 .pulse-bar {
   animation: pulseGlow 1.5s infinite ease-in-out;
 }
-/* Prevent mobile browsers from auto “text resizing” */
-html { -webkit-text-size-adjust: 100%; }
 
-/* Phone acts like a window looking at a desktop canvas */
-.desktop-viewport{
-  width: 100vw;
-  height: 100vh;
-  overflow: auto;                 /* ✅ pan/scroll the desktop UI */
-  -webkit-overflow-scrolling: touch;
-  background: #00093eff;
+/* Prevent iOS auto “text resizing” */
+html {
+  -webkit-text-size-adjust: 100%;
 }
 
-/* The locked “laptop” area */
-.desktop-canvas{
-  position: relative;
-  margin: 0 auto;                 /* center when screen is larger */
-}
-/* ==============================
-   MOBILE = DESKTOP LOOK (SCALED)
-   ============================== */
-
-.mode-mobile-desktop {
-  width: 100vw;
-  height: 100vh;
-  overflow: hidden;
-  display: flex;
-  align-items: flex-start;
-  justify-content: flex-start;
-  background: #00093eff; /* same vibe as your app */
-}
-
-/* IMPORTANT:
-   AppBase root returns: <div style={containerStyle}>
-   That has width:100vw height:100vh inline.
-   We override it here so it becomes a fixed desktop canvas.
-*/
-.mode-mobile-desktop .desktop-canvas-wrap > div {
-  width: 1440px !important;
-  height: 900px !important;
-}
-
-/* Optional: prevent any accidental scrollbars inside */
-.mode-mobile-desktop .desktop-canvas-wrap {
-  overflow: hidden;
-}
 /* ==========================================
-   MOBILE = DESKTOP LOOK (SCALED + CENTERED)
-   ========================================== */
-
-.mode-mobile-desktop {
-  position: fixed;
-  inset: 0;
-  width: 100vw;
-  height: 100vh;
-  overflow: hidden;
-  background: #00093eff; /* matches your base background */
-}
-
-/* The scaled canvas wrapper */
-.mode-mobile-desktop .desktop-canvas-wrap {
-  position: absolute;
-  top: 0;
-  left: 0;
-  will-change: transform;
-}
-
-/* ✅ IMPORTANT:
-   Your AppBase root div has inline width/height: 100vw/100vh.
-   We override that so it becomes a desktop canvas size.
-   (This is how we get the desktop layout on a phone.)
-*/
-.mode-mobile-desktop .appbase-shell > div {
-  width: 1920px !important;
-  height: 1080px !important;
-}
-/* ==========================================
-   MOBILE = DESKTOP LOOK (BIGGER BOXES)
-   Scale by WIDTH + allow vertical scroll
+   MOBILE = DESKTOP LOOK (CLEAN, SINGLE SOURCE)
+   Works with MobileApp.jsx JS sizing
    ========================================== */
 
 .mode-mobile-desktop {
@@ -267,25 +198,20 @@ html { -webkit-text-size-adjust: 100%; }
   width: 100vw;
   height: 100vh;
 
-  /* ✅ key: allow scroll so we can keep boxes big */
+  /* allow scroll if desktop canvas is taller than phone */
   overflow: auto;
   -webkit-overflow-scrolling: touch;
 
+  /* center the scaled desktop canvas */
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+
   background: #00093eff;
+  padding: 10px 0 60px;
 }
 
-/* The scaled canvas */
 .mode-mobile-desktop .desktop-canvas-wrap {
-  position: relative;
+  flex: 0 0 auto;
   will-change: transform;
-
-  /* ✅ add bottom padding so you can scroll comfortably */
-  padding-bottom: 80px;
-}
-
-/* ✅ Force AppBase root to behave like a desktop canvas
-   (overrides inline 100vw/100vh on AppBase root div) */
-.mode-mobile-desktop .appbase-shell > div {
-  width: 1920px !important;
-  height: 1080px !important;
 }
