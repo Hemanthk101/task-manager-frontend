@@ -1103,15 +1103,15 @@ function App() {
       {activeView === "Body" && (
         <>
           <div className="task-card left-card" style={{ position: "relative", ...applyLeftCardOverride }}>
-            <div style={{ position: "absolute", top: "60px", left: "10px" }}>
+            <div style={{ position: "absolute", top: "30px", left: "10px" }}>
               <GlowCircle value={percentage} ringColor="rgb(0,255,255)" textColor="#bffcff" />
             </div>
 
-            <div style={{ position: "absolute", top: "60px", left: "230px" }}>
+            <div style={{ position: "absolute", top: "30px", left: "230px" }}>
               <GlowCircle value={secondPercentage} ringColor="#fff2a8" textColor="#fff2cc" />
             </div>
 
-            <div style={{ position: "absolute", top: "260px", left: "30px", width: "90%" }}>
+            <div style={{ position: "absolute", top: "220px", left: "30px", width: "90%" }}>
               <h3 style={{ color: "#bffcff", textAlign: "center" }}>Muscle Progress</h3>
               <LinearBar label="💪 Biceps" value={progress.biceps} max={MAX_SESSIONS} />
               <LinearBar label="🏋️ Shoulders" value={progress.shoulders} max={MAX_SESSIONS} />
