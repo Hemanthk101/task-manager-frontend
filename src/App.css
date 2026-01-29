@@ -226,3 +226,33 @@ html { -webkit-text-size-adjust: 100%; }
 .mode-mobile-desktop .desktop-canvas-wrap {
   overflow: hidden;
 }
+/* ==========================================
+   MOBILE = DESKTOP LOOK (SCALED + CENTERED)
+   ========================================== */
+
+.mode-mobile-desktop {
+  position: fixed;
+  inset: 0;
+  width: 100vw;
+  height: 100vh;
+  overflow: hidden;
+  background: #00093eff; /* matches your base background */
+}
+
+/* The scaled canvas wrapper */
+.mode-mobile-desktop .desktop-canvas-wrap {
+  position: absolute;
+  top: 0;
+  left: 0;
+  will-change: transform;
+}
+
+/* ✅ IMPORTANT:
+   Your AppBase root div has inline width/height: 100vw/100vh.
+   We override that so it becomes a desktop canvas size.
+   (This is how we get the desktop layout on a phone.)
+*/
+.mode-mobile-desktop .appbase-shell > div {
+  width: 1920px !important;
+  height: 1080px !important;
+}
