@@ -256,3 +256,36 @@ html { -webkit-text-size-adjust: 100%; }
   width: 1920px !important;
   height: 1080px !important;
 }
+/* ==========================================
+   MOBILE = DESKTOP LOOK (BIGGER BOXES)
+   Scale by WIDTH + allow vertical scroll
+   ========================================== */
+
+.mode-mobile-desktop {
+  position: fixed;
+  inset: 0;
+  width: 100vw;
+  height: 100vh;
+
+  /* ✅ key: allow scroll so we can keep boxes big */
+  overflow: auto;
+  -webkit-overflow-scrolling: touch;
+
+  background: #00093eff;
+}
+
+/* The scaled canvas */
+.mode-mobile-desktop .desktop-canvas-wrap {
+  position: relative;
+  will-change: transform;
+
+  /* ✅ add bottom padding so you can scroll comfortably */
+  padding-bottom: 80px;
+}
+
+/* ✅ Force AppBase root to behave like a desktop canvas
+   (overrides inline 100vw/100vh on AppBase root div) */
+.mode-mobile-desktop .appbase-shell > div {
+  width: 1920px !important;
+  height: 1080px !important;
+}

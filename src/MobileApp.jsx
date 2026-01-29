@@ -1,56 +1,51 @@
 // MobileApp.jsx
-import React, { useEffect, useLayoutEffect, useRef, useState } from "react";
+import React, { useEffect, useLayoutEffect, useState } from "react";
 import AppBase from "./AppBase.jsx";
 
 /**
- * MOBILE SHOULD LOOK EXACTLY LIKE DESKTOP (scaled to fit)
- * - Force AppBase root to a fixed desktop canvas size
- * - Scale the entire canvas down to fit phone viewport
- * - Center it so left/right cards both show
+ * ✅ MOBILE LOOKS LIKE DESKTOP (BIGGER BOXES)
+ * Fix: scale by WIDTH (not min(width,height))
+ * - This makes the UI bigger like desktop
+ * - If height doesn't fit, user can scroll vertically (normal mobile behavior)
  */
 
-// ✅ Set this to match your DESKTOP design canvas
-// Use the size where your UI looks perfect on desktop.
-// Common good options: 1920x1080, 1600x900, 1440x900
+// Match your desktop design canvas
 const DESKTOP_W = 1920;
 const DESKTOP_H = 1080;
 
+// Optional: a tiny boost so it feels “desktop big” (keep 1.0–1.12)
+const SCALE_BOOST = 1.06;
+
 export default function MobileApp() {
-  const wrapRef = useRef(null);
-  const [view, setView] = useState({ scale: 1, tx: 0, ty: 0 });
+  const [view, setView] = useState({ scale: 1, tx: 0 });
 
   const calc = () => {
-    // visualViewport is best on mobile (accounts for browser UI)
     const vw = window.visualViewport?.width ?? window.innerWidth;
-    const vh = window.visualViewport?.height ?? window.innerHeight;
 
-    // Fit desktop canvas fully inside the phone viewport
-    const scale = Math.min(vw / DESKTOP_W, vh / DESKTOP_H);
+    // ✅ Width-based scale (this makes boxes larger than your current approach)
+    let scale = (vw / DESKTOP_W) * SCALE_BOOST;
 
-    // Center the scaled canvas
+    // Safety clamps (avoid extreme sizes)
+    scale = Math.max(0.25, Math.min(scale, 1));
+
     const scaledW = DESKTOP_W * scale;
-    const scaledH = DESKTOP_H * scale;
 
+    // Center horizontally
     const tx = Math.max(0, (vw - scaledW) / 2);
-    const ty = Math.max(0, (vh - scaledH) / 2);
 
-    setView({ scale, tx, ty });
+    setView({ scale, tx });
   };
 
   useLayoutEffect(() => {
     calc();
-    // run again after first paint (fonts/images)
     const t = setTimeout(calc, 50);
     return () => clearTimeout(t);
   }, []);
 
   useEffect(() => {
-    calc();
-
     const onResize = () => calc();
-    window.addEventListener("resize", onResize);
 
-    // visualViewport fires when address bar shows/hides
+    window.addEventListener("resize", onResize);
     window.visualViewport?.addEventListener("resize", onResize);
     window.visualViewport?.addEventListener("scroll", onResize);
 
@@ -62,17 +57,16 @@ export default function MobileApp() {
   }, []);
 
   return (
-    <div className="mode-mobile-desktop" ref={wrapRef}>
+    <div className="mode-mobile-desktop">
       <div
         className="desktop-canvas-wrap"
         style={{
           width: DESKTOP_W,
           height: DESKTOP_H,
-          transform: `translate(${view.tx}px, ${view.ty}px) scale(${view.scale})`,
+          transform: `translateX(${view.tx}px) scale(${view.scale})`,
           transformOrigin: "top left",
         }}
       >
-        {/* shell lets CSS override AppBase root size WITHOUT editing base */}
         <div className="appbase-shell">
           <AppBase />
         </div>
