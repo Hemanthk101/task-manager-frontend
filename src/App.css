@@ -36,14 +36,15 @@
   height: var(--taskCardHeight);
   border: 1.5px solid rgba(0, 191, 255, 0.8);
 
-  background: rgba(0, 20, 50, 0.25);
+  background: rgba(0, 30, 70, 0.4);
   backdrop-filter: blur(var(--blur-card)) saturate(180%);
   -webkit-backdrop-filter: blur(var(--blur-card)) saturate(180%);
 
   box-shadow:
     0 0 25px rgba(0, 191, 255, 0.7),
     0 0 55px rgba(0, 191, 255, 0.4),
-    0 0 90px rgba(0, 191, 255, 0.3);
+    0 0 90px rgba(0, 191, 255, 0.3),
+    inset 0 0 30px rgba(0, 255, 255, 0.15);
 
   display: flex;
   justify-content: center; /* center horizontally */
@@ -64,7 +65,8 @@
   box-shadow:
     0 0 35px rgba(0, 220, 255, 0.9),
     0 0 70px rgba(0, 200, 255, 0.6),
-    0 0 120px rgba(0, 200, 255, 0.4);
+    0 0 120px rgba(0, 200, 255, 0.4),
+    inset 0 0 40px rgba(0, 255, 255, 0.25);
   transform: scale(1.03);
 }
 
@@ -275,7 +277,7 @@ html {
 .mobile-card-shell {
   position: relative;
   margin: 0 auto 18px;
-  filter: drop-shadow(0 14px 30px rgba(0, 0, 0, 0.30));
+  filter: drop-shadow(0 0 35px rgba(0, 255, 255, 0.35)) drop-shadow(0 14px 30px rgba(0, 0, 0, 0.30));
 }
 
 .mobile-card-shell-left,
@@ -295,10 +297,16 @@ html {
   background:
     linear-gradient(180deg, rgba(8, 31, 63, 0.96), rgba(5, 18, 38, 0.98)) !important;
   box-shadow:
+    0 0 45px rgba(0, 255, 255, 0.25),
     0 18px 40px rgba(0,0,0,0.38),
     inset 0 1px 0 rgba(255,255,255,0.05),
     inset 0 0 25px rgba(0,191,255,0.04) !important;
   overflow: hidden;
+}
+
+/* Eliminate native desktop hover zoom on mobile touches */
+.app-base-mobile .task-card:hover {
+  transform: none !important;
 }
 
 /* subtle glow edge */

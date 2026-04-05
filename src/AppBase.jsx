@@ -4,6 +4,7 @@ import { CircularProgressbar, buildStyles } from "react-circular-progressbar";
 import "react-circular-progressbar/dist/styles.css";
 import myphoto from "./assets/1.jpg";
 import "./App.css";
+import ElectricBorder from "./components/ElectricBorder/ElectricBorder";
 
 /**
  * ✅ SYNC SETTINGS
@@ -1028,8 +1029,8 @@ function App({ isMobile = false }) {
     margin: 0,
     padding: isMobile ? "14px 12px 90px" : 0,
     position: "relative",
-    backgroundColor: isMobile ? "#071226" : "#00093eff",
-    backgroundImage: isMobile ? "none" : `url(${myphoto})`,
+    backgroundColor: isMobile ? "#071226" : "transparent",
+    backgroundImage: "none",
     backgroundSize: isMobile ? "auto" : "contain",
     backgroundPosition: isMobile ? "center" : "center",
     backgroundRepeat: "no-repeat",
@@ -1092,6 +1093,7 @@ function App({ isMobile = false }) {
         style={{
           width: width * MOBILE_CARD_SCALE,
           height: height * MOBILE_CARD_SCALE,
+          position: "relative",
         }}
       >
         <div
@@ -1110,6 +1112,13 @@ function App({ isMobile = false }) {
           }}
         >
           {children}
+        </div>
+        <div style={{ position: "absolute", inset: 0, zIndex: 10, pointerEvents: "none" }}>
+          <ElectricBorder
+            color="#00ffff"
+            borderRadius={22 * MOBILE_CARD_SCALE}
+            style={{ width: "100%", height: "100%" }}
+          />
         </div>
       </div>
     );
