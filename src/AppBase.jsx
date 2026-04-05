@@ -15,7 +15,7 @@ const API_BASE = import.meta.env.VITE_API_BASE || "";
 const USER_ID = import.meta.env.VITE_USER_ID || "demo";
 const SYNC_ENABLED = !!API_BASE;
 
-function App() {
+function App({ isMobile = false }) {
   // ---------------------------------
   // ✅ UI SIZE/HEIGHT CONTROLS (edit here)
   // ---------------------------------
@@ -203,7 +203,7 @@ function App() {
   // ---------------------------------
   // View state
   // ---------------------------------
-  const [activeView, setActiveView] = useState("none");
+  const [activeView, setActiveView] = useState(isMobile ? "Mind" : "none");
 
   // ---------------------------------
   // BODY: weight + percentage
@@ -1023,16 +1023,17 @@ function App() {
   // ---------------------------------
   const containerStyle = {
     width: "100vw",
-    height: "100vh",
+    minHeight: "100vh",
+    height: isMobile ? "auto" : "100vh",
     margin: 0,
-    padding: 0,
+    padding: isMobile ? "16px 12px 28px" : 0,
     position: "relative",
     backgroundColor: "#00093eff",
     backgroundImage: `url(${myphoto})`,
-    backgroundSize: "contain",
-    backgroundPosition: "center",
+    backgroundSize: isMobile ? "cover" : "contain",
+    backgroundPosition: isMobile ? "center top" : "center",
     backgroundRepeat: "no-repeat",
-    overflow: "hidden",
+    overflow: isMobile ? "auto" : "hidden",
   };
 
   const buttonStyle = {
@@ -1068,41 +1069,108 @@ function App() {
   const applyRightCardOverride = RIGHT_CARD_WIDTH || RIGHT_CARD_HEIGHT ? rightCardOverride : undefined;
   const applyLeftCardOverride = LEFT_CARD_WIDTH || LEFT_CARD_HEIGHT ? leftCardOverride : undefined;
 
+  const MOBILE_CARD_SCALE = 0.64;
+  const DEFAULT_CARD_WIDTH = RIGHT_CARD_WIDTH || LEFT_CARD_WIDTH || 439;
+  const DEFAULT_CARD_HEIGHT = RIGHT_CARD_HEIGHT || LEFT_CARD_HEIGHT || 650;
+
+  const renderTaskCard = (side, children, style, options = {}) => {
+    const width = options.width || DEFAULT_CARD_WIDTH;
+    const height = options.height || DEFAULT_CARD_HEIGHT;
+
+    if (!isMobile) {
+      return (
+        <div className={`task-card ${side}-card`} style={style}>
+          {children}
+        </div>
+      );
+    }
+
+    return (
+      <div
+        className={`mobile-card-shell mobile-card-shell-${side}`}
+        style={{
+          width: width * MOBILE_CARD_SCALE,
+          height: height * MOBILE_CARD_SCALE,
+        }}
+      >
+        <div
+          className={`task-card mobile-zoom-card mobile-${side}-card`}
+          style={{
+            ...style,
+            width,
+            height,
+            position: "absolute",
+            top: 0,
+            left: 0,
+            right: "auto",
+            zoom: MOBILE_CARD_SCALE,
+            transformOrigin: "top left",
+          }}
+        >
+          {children}
+        </div>
+      </div>
+    );
+  };
+
   // ---------------------------------
   // Render
   // ---------------------------------
   return (
-    <div style={containerStyle}>
+    <div className={isMobile ? "app-base-mobile" : "app-base-desktop"} style={containerStyle}>
       {/* --- BUTTONS --- */}
-      <button
-        className="glow-btn"
-        style={{ ...buttonStyle, top: "20%", left: "49.3%" }}
-        onClick={() => setActiveView("Mind")}
-        title="Mind"
-      />
-      <button
-        className="glow-btn"
-        style={{ ...buttonStyle, top: "35%", left: "49.3%" }}
-        onClick={() => setActiveView("Skin")}
-        title="Skin"
-      />
-      <button
-        className="glow-btn"
-        style={{ ...buttonStyle, top: "45%", left: "49.3%" }}
-        onClick={() => setActiveView("Body")}
-        title="Body"
-      />
-      <button
-        className="glow-btn"
-        style={{ ...buttonStyle, bottom: "6%", right: "49.3%" }}
-        onClick={() => setActiveView("Tasks")}
-        title="Tasks"
-      />
+      {isMobile ? (
+        <div className="mobile-top-nav">
+          {[
+            ["Body", "Body"],
+            ["Mind", "Mind"],
+            ["Skin", "Skin"],
+            ["Tasks", "Tasks"],
+          ].map(([label, value]) => (
+            <button
+              key={value}
+              type="button"
+              className={`mobile-nav-btn ${activeView === value ? "is-active" : ""}`}
+              onClick={() => setActiveView(value)}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
+      ) : (
+        <>
+          <button
+            className="glow-btn"
+            style={{ ...buttonStyle, top: "20%", left: "49.3%" }}
+            onClick={() => setActiveView("Mind")}
+            title="Mind"
+          />
+          <button
+            className="glow-btn"
+            style={{ ...buttonStyle, top: "35%", left: "49.3%" }}
+            onClick={() => setActiveView("Skin")}
+            title="Skin"
+          />
+          <button
+            className="glow-btn"
+            style={{ ...buttonStyle, top: "45%", left: "49.3%" }}
+            onClick={() => setActiveView("Body")}
+            title="Body"
+          />
+          <button
+            className="glow-btn"
+            style={{ ...buttonStyle, bottom: "6%", right: "49.3%" }}
+            onClick={() => setActiveView("Tasks")}
+            title="Tasks"
+          />
+        </>
+      )}
 
       {/* --- BODY VIEW --- */}
       {activeView === "Body" && (
         <>
-          <div className="task-card left-card" style={{ position: "relative", ...applyLeftCardOverride }}>
+          {renderTaskCard("left", (
+            <>
             <div style={{ position: "absolute", top: "30px", left: "10px" }}>
               <GlowCircle value={percentage} ringColor="rgb(0,255,255)" textColor="#bffcff" />
             </div>
@@ -1130,9 +1198,10 @@ function App() {
                 />
               </div>
             </div>
-          </div>
+            </>
+          ), isMobile ? applyLeftCardOverride : { position: "relative", ...applyLeftCardOverride })}
 
-          <div className="task-card right-card" style={applyRightCardOverride}>
+          {renderTaskCard("right", (
             <div className="panel-inner">
               <div style={{ textAlign: "center" }}>
                 <label htmlFor="xValue" style={{ color: "#bffcff", fontSize: "20px", fontWeight: "400" }}>
@@ -1171,14 +1240,15 @@ function App() {
                 ))}
               </div>
             </div>
-          </div>
+          ), applyRightCardOverride)}
         </>
       )}
 
       {/* --- MIND VIEW --- */}
       {activeView === "Mind" && (
         <>
-          <div className="task-card left-card" style={{ position: "relative", ...applyLeftCardOverride }}>
+          {renderTaskCard("left", (
+            <>
             <div style={{ position: "absolute", top: "50px", left: "110px" }}>
               <GlowCircle
                 value={mindTotals.percent}
@@ -1211,9 +1281,11 @@ function App() {
                 );
               })}
             </div>
-          </div>
+            </>
+          ), isMobile ? applyLeftCardOverride : { position: "relative", ...applyLeftCardOverride })}
 
-          <div className="task-card right-card" style={applyRightCardOverride}>
+          {renderTaskCard("right", (
+            <>
             {/* ✅ FIXED: full-height + proper scroll + bottom pad via App.css panel-inner/panel-scroll */}
             <div className="panel-inner">
               <h2 style={{ color: "#bffcff", textAlign: "center", marginBottom: "10px", fontSize: MIND_HEADER_FONT_SIZE }}>
@@ -1558,14 +1630,16 @@ function App() {
                 Sync: {SYNC_ENABLED ? (isHydrated ? "✅ connected" : "⏳ loading...") : "⚠️ disabled (set VITE_API_BASE)"}
               </div>
             </div>
-          </div>
+            </>
+          ), applyRightCardOverride)}
         </>
       )}
 
       {/* --- SKIN VIEW --- */}
       {activeView === "Skin" && (
         <>
-          <div className="task-card left-card" style={{ position: "relative", ...applyLeftCardOverride }}>
+          {renderTaskCard("left", (
+            <>
             <div style={{ position: "absolute", top: "300px", left: "30px", width: "90%" }}>
               <h3 style={{ color: "#bffcff", textAlign: "center" }}>Skin Routine Progress</h3>
               <LinearBar label="🧴 Skin Sessions" value={skinSessions} max={MAX_SKIN_SESSIONS} />
@@ -1585,9 +1659,10 @@ function App() {
             <div style={{ position: "absolute", top: "60px", left: "110px" }}>
               <GlowCircle value={skinPercent} ringColor="rgb(0,255,255)" textColor="#bffcff" />
             </div>
-          </div>
+            </>
+          ), isMobile ? applyLeftCardOverride : { position: "relative", ...applyLeftCardOverride })}
 
-          <div className="task-card right-card" style={applyRightCardOverride}>
+          {renderTaskCard("right", (
             <div className="panel-inner">
               <h2 style={{ color: "#bffcff", textAlign: "center", marginBottom: 10 }}>Tasks:</h2>
 
@@ -1613,14 +1688,14 @@ function App() {
                 ))}
               </div>
             </div>
-          </div>
+          ), applyRightCardOverride)}
         </>
       )}
 
       {/* --- TASKS VIEW --- */}
       {activeView === "Tasks" && (
         <>
-          <div className="task-card left-card" style={{ position: "relative", ...applyLeftCardOverride }}>
+          {renderTaskCard("left", (
             <div className="panel-inner">
               <h2 style={{ color: "#bffcff", textAlign: "center", marginBottom: "14px" }}>Your Tasks</h2>
 
@@ -1704,9 +1779,9 @@ function App() {
                 )}
               </div>
             </div>
-          </div>
+          ), isMobile ? applyLeftCardOverride : { position: "relative", ...applyLeftCardOverride })}
 
-          <div className="task-card right-card" style={applyRightCardOverride}>
+          {renderTaskCard("right", (
             <div className="panel-inner" style={{ alignItems: "center" }}>
               <h2 style={{ color: "#bffcff", marginBottom: "16px", textAlign: "center" }}>Add Task</h2>
 
@@ -1795,7 +1870,7 @@ function App() {
                 Sync: {SYNC_ENABLED ? (isHydrated ? "✅ connected" : "⏳ loading...") : "⚠️ disabled (set VITE_API_BASE)"}
               </div>
             </div>
-          </div>
+          ), applyRightCardOverride)}
         </>
       )}
     </div>

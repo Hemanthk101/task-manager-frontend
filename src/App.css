@@ -215,3 +215,58 @@ html {
   flex: 0 0 auto;
   will-change: transform;
 }
+
+.app-base-mobile {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.mobile-top-nav {
+  width: min(100%, 340px);
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 6px;
+  margin: 2px auto 10px;
+  position: sticky;
+  top: 6px;
+  z-index: 20;
+}
+
+.mobile-nav-btn {
+  padding: 8px 0;
+  border-radius: 999px;
+  border: 1px solid rgba(0,255,255,0.45);
+  background: rgba(0, 30, 60, 0.55);
+  color: #bffcff;
+  font-weight: 800;
+  font-size: 14px;
+  box-shadow: 0 0 10px rgba(0, 191, 255, 0.18);
+}
+
+.mobile-nav-btn.is-active {
+  color: #001327;
+  background: linear-gradient(90deg, rgba(0,255,255,0.95), rgba(0,180,255,0.95));
+  box-shadow: 0 0 16px rgba(0,255,255,0.65);
+}
+
+.mobile-card-shell {
+  position: relative;
+  margin: 0 auto 14px;
+}
+
+.mobile-zoom-card {
+  margin: 0 !important;
+}
+
+.mobile-card-shell-left {
+  z-index: 2;
+}
+
+.mobile-card-shell-right {
+  z-index: 1;
+}
+
+body.mode-mobile {
+  overflow-y: auto;
+}
