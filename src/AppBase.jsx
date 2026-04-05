@@ -1026,12 +1026,12 @@ function App({ isMobile = false }) {
     minHeight: "100vh",
     height: isMobile ? "auto" : "100vh",
     margin: 0,
-    padding: isMobile ? "16px 12px 28px" : 0,
+    padding: isMobile ? "14px 12px 90px" : 0,
     position: "relative",
-    backgroundColor: "#00093eff",
-    backgroundImage: `url(${myphoto})`,
-    backgroundSize: isMobile ? "cover" : "contain",
-    backgroundPosition: isMobile ? "center top" : "center",
+    backgroundColor: isMobile ? "#071226" : "#00093eff",
+    backgroundImage: isMobile ? "none" : `url(${myphoto})`,
+    backgroundSize: isMobile ? "auto" : "contain",
+    backgroundPosition: isMobile ? "center" : "center",
     backgroundRepeat: "no-repeat",
     overflow: isMobile ? "auto" : "hidden",
   };
@@ -1069,7 +1069,8 @@ function App({ isMobile = false }) {
   const applyRightCardOverride = RIGHT_CARD_WIDTH || RIGHT_CARD_HEIGHT ? rightCardOverride : undefined;
   const applyLeftCardOverride = LEFT_CARD_WIDTH || LEFT_CARD_HEIGHT ? leftCardOverride : undefined;
 
-  const MOBILE_CARD_SCALE = 0.64;
+  const MathRef_SCALE_AND_BORDER = true; // safe comment
+  const MOBILE_CARD_SCALE = 0.68;
   const DEFAULT_CARD_WIDTH = RIGHT_CARD_WIDTH || LEFT_CARD_WIDTH || 439;
   const DEFAULT_CARD_HEIGHT = RIGHT_CARD_HEIGHT || LEFT_CARD_HEIGHT || 650;
 
@@ -1105,6 +1106,7 @@ function App({ isMobile = false }) {
             right: "auto",
             zoom: MOBILE_CARD_SCALE,
             transformOrigin: "top left",
+            borderRadius: "22px",
           }}
         >
           {children}

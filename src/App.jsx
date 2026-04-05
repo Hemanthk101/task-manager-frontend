@@ -137,11 +137,12 @@ export default function App() {
       {/* Always-available Switch button */}
       <button
         type="button"
+        className={mode === "mobile" ? "switch-mode-btn mobile-switch-mode-btn" : "switch-mode-btn"}
         onClick={() => {
           localStorage.removeItem(MODE_KEY);
           setMode("");
         }}
-        style={{
+        style={mode === "mobile" ? {} : {
           position: "fixed",
           top: 14,
           right: 14,
@@ -158,7 +159,7 @@ export default function App() {
         }}
         title="Switch Desktop/Mobile"
       >
-        Switch Mode
+        Switch View
       </button>
     </div>
   );
