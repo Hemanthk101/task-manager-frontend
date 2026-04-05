@@ -5,6 +5,11 @@ import "react-circular-progressbar/dist/styles.css";
 import myphoto from "./assets/1.jpg";
 import "./App.css";
 import ElectricBorder from "./components/ElectricBorder/ElectricBorder";
+import useReminderEngine from "./hooks/useReminderEngine";
+import NotificationBell from "./components/NotificationBell";
+import NotificationCenter from "./components/NotificationCenter";
+import ToastHost from "./components/ToastHost";
+import { requestBrowserNotificationPermission } from "./services/notificationService";
 
 /**
  * ✅ SYNC SETTINGS
@@ -266,32 +271,7 @@ function App({ isMobile = false }) {
   const [newLinkTitle, setNewLinkTitle] = useState("");
   const [newLinkUrl, setNewLinkUrl] = useState("");
 
-  // ---------------------------------
-  // Notifications: auto-enable
-  // ---------------------------------
-  const [notifEnabled] = useState(() => {
-    const s = loadJSON("reminderSettings", { enabled: true, skinTime: "21:00", bodyTime: "19:00" });
-    return s.enabled !== false;
-  });
-
-  useEffect(() => {
-    if (!notifEnabled) return;
-    if (!("Notification" in window)) return;
-    try {
-      if (Notification.permission === "default") {
-        Notification.requestPermission().catch(() => {});
-      }
-    } catch {}
-  }, [notifEnabled]);
-
-  const fireNotify = (title, body) => {
-    if ("Notification" in window && Notification.permission === "granted") {
-      new Notification(title, { body });
-      return;
-    }
-    // eslint-disable-next-line no-alert
-    alert(`${title}\n\n${body}`);
-  };
+  // (Notification Engine moved below properly initialized state dependencies)
 
   // ---------------------------------
   // Reminder times: Skin + Body
@@ -343,6 +323,78 @@ function App({ isMobile = false }) {
       return changed ? next : prev;
     });
   }, [mindSubjects]);
+
+  // ---------------------------------
+  // Notification Engine
+  // ---------------------------------
+  const [notificationCenterOpen, setNotificationCenterOpen] = useState(false);
+
+  useEffect(() => {
+    requestBrowserNotificationPermission();
+  }, []);
+
+  // Restored: used by legacy IST reminder engine (lines ~722 and ~819)
+  const [notifEnabled] = useState(() => {
+    const s = loadJSON("reminderSettings", { enabled: true, skinTime: "21:00", bodyTime: "19:00" });
+    return s.enabled !== false;
+  });
+
+  // Legacy helper kept for compatibility with existing reminder calls throughout the file
+  const fireNotify = (title, body) => {
+    if ("Notification" in window && Notification.permission === "granted") {
+      new Notification(title, { body });
+    }
+  };
+
+  const allReminders = useMemo(() => {
+    const mindItems = (mindSubjects || []).map((subject) => {
+      const isEnabled = mindReminderEnabled && mindReminderEnabled[subject.id];
+      const time = (mindReminderTimes && mindReminderTimes[subject.id]) || "20:30";
+
+      return {
+        id: `mind-${subject.id}`,
+        type: "mind",
+        title: `${subject.label} Reminder`,
+        message: `Time to work on ${subject.label}.`,
+        time,
+        enabled: !!isEnabled,
+        repeat: "daily",
+        meta: { subject: subject.label },
+      };
+    });
+
+    const bodyItems = bodyReminderTime
+      ? [
+          {
+            id: "body-daily",
+            type: "body",
+            title: "Body Tasks Reminder",
+            message: "Complete your body goals for today.",
+            time: bodyReminderTime,
+            enabled: true,
+            repeat: "daily",
+          },
+        ]
+      : [];
+
+    const skinItems = skinReminderTime
+      ? [
+          {
+            id: "skin-daily",
+            type: "skin",
+            title: "Skin Routine Reminder",
+            message: "Complete your skin routine.",
+            time: skinReminderTime,
+            enabled: true,
+            repeat: "daily",
+          },
+        ]
+      : [];
+
+    return [...mindItems, ...bodyItems, ...skinItems];
+  }, [mindSubjects, skinReminderTime, bodyReminderTime, mindReminderTimes, mindReminderEnabled]);
+
+  useReminderEngine(allReminders);
 
   // ---------------------------------
   // ✅ SYNC HYDRATION (Backend -> App)
@@ -1129,6 +1181,12 @@ function App({ isMobile = false }) {
   // ---------------------------------
   return (
     <div className={isMobile ? "app-base-mobile" : "app-base-desktop"} style={containerStyle}>
+      <NotificationBell onClick={() => setNotificationCenterOpen(true)} />
+      <NotificationCenter
+        open={notificationCenterOpen}
+        onClose={() => setNotificationCenterOpen(false)}
+      />
+      <ToastHost />
       {/* --- BUTTONS --- */}
       {isMobile ? (
         <div className="mobile-top-nav">

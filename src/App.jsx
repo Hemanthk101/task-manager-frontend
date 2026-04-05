@@ -144,10 +144,10 @@ export default function App() {
         }}
         style={mode === "mobile" ? {} : {
           position: "fixed",
-          top: 14,
-          right: 14,
+          bottom: 18,
+          left: 18,
           zIndex: 99999,
-          padding: "10px 14px",
+          padding: "10px 18px",
           borderRadius: 999,
           border: "1px solid rgba(0,255,255,0.25)",
           background: "rgba(0, 20, 50, 0.55)",
